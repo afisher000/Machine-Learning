@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from Pipelines import Imputation, FeatureEngineering, Scaling, SelectFeatures
+from Models import ModelAnalysis
 
 from sklearn.neighbors import NearestNeighbors
 from sklearn.pipeline import Pipeline
@@ -42,29 +43,32 @@ X_test = pipeline.transform(df_test)
 
 
 # %% Models
-forest = RandomForestClassifier(n_estimators=100, max_depth=7, oob_score=True)
-svc = SVC(C=1, kernel='rbf', probability=True)
+model = SVC(cache_size = 1000)
+param_grid = {
+    'C':np.logspace(-2,2,5), 'gamma':np.logspace(-2,2,5)
+}
+analysis = ModelAnalysis(model, X_train, y_train, param_grid=param_grid, scoring='accuracy')
 
-model = svc
 
-scores = cross_val_score(model, X_train, y_train, cv=10, n_jobs=-1)
-print(f'Score: {scores.mean():.2f} ({scores.std():.2f})')
-model.fit(X_train, y_train)
-y_test = model.predict(X_test)
 
-thresh = 0.5
-y_train_prob = model.predict_proba(X_train)
-y_pred = model.predict(X_train)
+# scores = cross_val_score(model, X_train, y_train, cv=10, n_jobs=-1)
+# print(f'Score: {scores.mean():.2f} ({scores.std():.2f})')
+# model.fit(X_train, y_train)
+# y_test = model.predict(X_test)
 
-# Incorrect fits
-wrong_pred = (y_train != y_pred)
-X_wrong = X_train[wrong_pred]
-X_right = X_train[~wrong_pred]
+# thresh = 0.5
+# y_train_prob = model.predict_proba(X_train)
+# y_pred = model.predict(X_train)
 
-# Plot right vs wrong
-fig, ax = plt.subplots()
-X_right.plot.scatter(x='Age', y='Fare', c='g', ax=ax, label='right')
-X_wrong.plot.scatter(x='Age', y='Fare', c='r', ax=ax, label='wrong')
+# # Incorrect fits
+# wrong_pred = (y_train != y_pred)
+# X_wrong = X_train[wrong_pred]
+# X_right = X_train[~wrong_pred]
+
+# # Plot right vs wrong
+# fig, ax = plt.subplots()
+# X_right.plot.scatter(x='Age', y='Fare', c='g', ax=ax, label='right')
+# X_wrong.plot.scatter(x='Age', y='Fare', c='r', ax=ax, label='wrong')
 
 
 
