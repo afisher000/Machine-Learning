@@ -1,4 +1,4 @@
-# %% Imports
+# Imports
 from re import X
 from tkinter import Y
 from unicodedata import numeric
@@ -103,7 +103,8 @@ def plot_largecategorypct(df, n=10, ax=None):
     ax.set_ylabel('Largest Category Pct')
     ax.set_title(f'Top {n} results')
     return largest_pct
-# %% Saleprice by OverallQual
+
+
 # plot_regression(df, 'GrLivArea', 'SalePrice')
 # ax = sns.boxplot(data=df, x='OverallQual', y='SalePrice')
 # ax = sns.lineplot(data=df, x='OverallQual', y='SalePrice', hue='LotShape')
