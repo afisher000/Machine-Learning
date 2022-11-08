@@ -4,12 +4,11 @@
 # Ignore node_modules folder
 node_modules
 venv
-**/venv/**
-**/__pycache__/**
 
 # Ignore all text files
 *.txt
 *.pdf
+*.pyc
 
 # Ignore files related to API keys
 .env
