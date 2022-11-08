@@ -5,6 +5,7 @@
 node_modules
 venv
 **/venv/
+**/__pycache__/
 
 # Ignore all text files
 *.txt
