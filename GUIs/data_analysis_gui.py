@@ -23,7 +23,7 @@ from PyQt5.Qt import Qt as qt
 from PyQt5 import uic
 
 # Figure Imports
-from matplotlib.backends.backend_qtagg import FigureCanvas, NavigationToolbar2QT as NavigationToolbar
+from matplotlib.backends.backend_qt5agg import FigureCanvas, NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
 import matplotlib.gridspec as gridspec
 from matplotlib import rcParams
@@ -31,8 +31,10 @@ rcParams.update({'figure.autolayout': True}) # to automatically fit long axis ti
 
 ## To implement
 # Filtering options (only data from a given category or numeric range)
+# Create one-hot and dummy encoders
+# Create encodings through gui
 
-mw_Ui, mw_Base = uic.loadUiType('analysisgui.ui')
+mw_Ui, mw_Base = uic.loadUiType('data_analysis_gui.ui')
 class Main_Window(mw_Base, mw_Ui):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
