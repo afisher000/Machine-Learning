@@ -17,6 +17,7 @@ from sklearn.model_selection import GridSearchCV, cross_val_predict, cross_val_s
 # To Implement
     # Use SAMME when probabilities not allowed
     # Implement voting ensemble strategies
+    # Validation Curve
 
 # Ensemble techniques
 class BaggingClassifierModel():
@@ -25,12 +26,12 @@ class BaggingClassifierModel():
         self.model = BaggingClassifier(self.base_estimator)
         self.score = None
         self.hyper_params = ['n_estimators', 'max_samples', 'max_features', 'bootstrap']
-        self.param_grid = [{ 
+        self.param_grid = { 
             'n_estimators':[10, 30, 50], 
             'max_samples':[0.5, 0.75, 1.0],
             'max_features':[0.5, 0.75, 1.0],
             'bootstrap':[True, False]
-        }]
+        }
 
 class AdaBoostClassifierModel():
     def __init__(self, base_estimator):
@@ -38,11 +39,11 @@ class AdaBoostClassifierModel():
         self.model = AdaBoostClassifier(self.base_estimator)
         self.score = None
         self.hyper_params = ['n_estimators', 'learning_rate','algorithm']
-        self.param_grid = [{ 
+        self.param_grid = { 
             'n_estimators':[25, 50, 100],
-            'learning_rate':np.logspace(-1, 1, 3),
+            'learning_rate':[.01, .1, 1, 10],
             'algorithm':['SAMME']
-        }]
+        }
 
 # Base Model Inheritance Class
 class BaseModel():
@@ -57,7 +58,7 @@ class BaseModel():
             return
 
     def hyper_params(self):
-        return list(self.param_grid[0].keys())
+        return list(self.param_grid.keys())
 
     def update_bagging_model(self):
         self.bagging = BaggingClassifierModel(self.model)
@@ -70,62 +71,74 @@ class BaseModel():
 class RidgeClassifierModel(BaseModel):
     def __init__(self):
         self.model = RidgeClassifier()
-        self.param_grid = [{'alpha':np.logspace(-2,2,5)}]
+        self.param_grid = {'alpha':[0.01, 0.1, 1, 10, 100]}
+        self.update_bagging_model()
+        self.update_boosting_model()
 
 
 class SVCModel(BaseModel):
     def __init__(self):
         self.model = SVC(cache_size=1000)
-        self.param_grid = [{ 
-            'C':np.logspace(-2, 2, 5),
+        self.param_grid = { 
+            'C':[.01, .1, 1, 10, 100],
             'kernel':['linear','poly','rbf'],
-            'gamma':np.logspace(-2,2,5)
-        }]
+            'gamma':[.01, .1, 1, 10, 100]
+        }
+        self.update_bagging_model()
+        self.update_boosting_model()
         
 class SGDClassifierModel(BaseModel):
     def __init__(self):
         self.model = SGDClassifier()
-        self.param_grid = [{ 
+        self.param_grid = { 
             'loss':['hinge','log_loss','squared_error'],
             'max_iter':[500, 1000],
-            'alpha':np.logspace(-5,2,5),
-            'l1_ratio':np.logspace(-2,1,3)
-        }]
+            'alpha':[.01, .1, 1, 10, 100],
+            'l1_ratio':[.01, .1, 1, 10, 100]
+        }
+        self.update_bagging_model()
+        self.update_boosting_model()
 
 class RandomForestClassifierModel(BaseModel): # Technically ensemble, but easier to run here
     def __init__(self):
         self.model = RandomForestClassifier()
-        self.param_grid = [{ 
+        self.param_grid = { 
             'n_estimators':[50, 100, 200],
             'criterion':['gini', 'entropy'],
             'max_depth':[3,5,10],
             'min_samples_split':[5, 10, 20]
-        }]
+        }
+        self.update_bagging_model()
+        self.update_boosting_model()
 
 class ExtraTreesClassifierModel(BaseModel):
     def __init__(self):
         self.model = ExtraTreesClassifier()
-        self.param_grid = [{ 
+        self.param_grid = { 
             'n_estimators':[50, 100, 200],
             'criterion':['gini', 'entropy'],
             'max_depth':[3, 5, 10], 
             'min_samples_split':[5, 10, 20]
-        }]
+        }
+        self.update_bagging_model()
+        self.update_boosting_model()
 
 
 class KNeighborsClassifierModel(BaseModel):
     def __init__(self):
         self.model = KNeighborsClassifier()
-        self.param_grid = [{ 
+        self.param_grid = { 
             'n_neighbors':[5, 10, 15],
             'weights':['distance','uniform'],
             'algorithm':['auto','ball_tree','kd_tree'],
             'leaf_size':[15, 30, 45]
-        }]
+        }
+        self.update_bagging_model()
+        self.update_boosting_model()
 
 
 class ClassifierModels():
-    def __init__(self, X, y, scoring):
+    def __init__(self, X=None, y=None, scoring=None):
         self.X = X
         self.y = y
         self.scoring=scoring
@@ -147,7 +160,7 @@ class ClassifierModels():
         if model_string.endswith('_bagging'):
             model_string = model_string.removesuffix('_bagging')
             bagging = True
-        elif model_string.endswith('boosting'):
+        elif model_string.endswith('_boosting'):
             model_string = model_string.removesuffix('_boosting')
             boosting = True
 
@@ -174,7 +187,7 @@ class ClassifierModels():
         # Specificy param_grid
         param_grid = model.param_grid if param_grid is None else param_grid
         if hyper_params is not None:
-            param_grid = [{k:param_grid[0][k] for k in hyper_params}]
+            param_grid = [{k:param_grid[k] for k in hyper_params}]
 
         grid = GridSearchCV(model.model, n_jobs=-1, cv=cv, param_grid=param_grid, scoring=self.scoring)
         grid.fit(self.X, self.y)
@@ -182,20 +195,18 @@ class ClassifierModels():
         model.model = grid.best_estimator_
         scores = cross_val_score(grid.best_estimator_, self.X, self.y, cv=10, n_jobs=-1, scoring=self.scoring)
         model.score = scores.mean()
-
-        # Pring results
-        print(f'{model_string}: {scores.mean():.3f} ({scores.std():.3f})')
-        return
+        return scores
 
 
-    def learning_curve(self, model_string, samples=10, cv=10):
+    def learning_curve(self, model_string, samples=10, cv=10, ax=None):
         ''' Uses best model of class specified by model string to create learning curve.'''
         model, bagging, boosting = self.parse_model(model_string)
 
         train_sizes, train_scores, valid_scores = learning_curve( 
             model.model, self.X, self.y, train_sizes = np.linspace(.1, 1, samples), cv=cv, n_jobs=-1, scoring=self.scoring
         )
-        fig, ax = plt.subplots()
+        if ax is None:
+            fig, ax = plt.subplots()
         ax.plot(train_sizes, train_scores.mean(axis=1), label='Training')
         ax.plot(train_sizes, valid_scores.mean(axis=1), label='Validation')
         ax.set_title(model_string)
@@ -205,20 +216,23 @@ class ClassifierModels():
         return
 
 
-    def validation_curve(self, model_string, param_name, param_range, cv=10):
+    def validation_curve(self, model_string, param_name, param_range, cv=10, ax=None):
         model, bagging, boosting = self.parse_model(model_string)
         
         train_scores, valid_scores = validation_curve( 
             model.model, self.X, self.y, param_name=param_name, param_range=param_range, cv=cv, n_jobs=-1, scoring=self.scoring
         )
-
-        fig, ax = plt.subplots()
+    
+        if ax is None:
+            fig, ax = plt.subplots()
         ax.plot(param_range, train_scores.mean(axis=1), label='Training')
         ax.plot(param_range, valid_scores.mean(axis=1), label='Validation')
         ax.set_title(model_string)
         ax.set_xlabel(param_name)
         ax.set_ylabel(self.scoring)
         ax.legend()
+        if max(param_range)/min(param_range)>100:
+            ax.set_xscale('log')
         return
 
     def compare_model_predictions(self, model_strings):

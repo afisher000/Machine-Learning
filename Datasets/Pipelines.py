@@ -22,9 +22,6 @@ class Imputation(BaseEstimator, TransformerMixin):
             elif strategy =='most_frequent':
                 self.frequency_imputer.fit(df[features])
             elif strategy == 'bycategory':
-                if len(features)!=2:
-                    raise Exception('bycategory imputation needs two features specified')
-
                 for na_feature, category in features:
                     values_by_category = (df[df[na_feature].notna()]
                         .groupby(by=category)
@@ -34,6 +31,7 @@ class Imputation(BaseEstimator, TransformerMixin):
         return self
 
     def transform(self, df, y=None):
+        row_indexer = df.index!=-1000
         for strategy, features in self.data.items():
             if strategy =='median':
                 df[features] = self.median_imputer.transform(df[features])
@@ -44,14 +42,14 @@ class Imputation(BaseEstimator, TransformerMixin):
             elif strategy == 'bycategory':
                 for na_feature, category in features:
                     values_by_category = getattr(self, f'{na_feature}_by_{category}')
-                    df[na_feature] = np.where(
+                    df.loc[row_indexer,[na_feature]] = np.where(
                         df[na_feature].isna(),
                         values_by_category.loc[df[category]], # Median values by category
                         df[na_feature]
                     )
             elif strategy == 'byvalue':
                 for na_feature, value in features:
-                    df[na_feature] = df[na_feature].fillna(value)
+                    df.loc[row_indexer,[na_feature]] = df[na_feature].fillna(value)
         return df
 
 
@@ -74,11 +72,12 @@ class Scaling(BaseEstimator, TransformerMixin):
         return self
 
     def transform(self, df, y=None):
+        row_indexer = df.index!=-1000
         for scale_type, features in self.data.items():
             if scale_type=='minmax':
-                df.loc[:,features] = self.minmax_scaler.transform(df[features])
+                df.loc[row_indexer,features] = self.minmax_scaler.transform(df[features])
             elif scale_type=='standard':
-                df.loc[:,features] = self.standard_scaler.transform(df[features])
+                df.loc[row_indexer,features] = self.standard_scaler.transform(df[features])
             elif scale_type=='quantile':
-                df.loc[:,features] = self.quantile_scaler.transform(df[features])  
+                df.loc[row_indexer,features] = self.quantile_scaler.transform(df[features])  
         return df

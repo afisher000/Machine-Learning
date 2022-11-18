@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1100</width>
-    <height>857</height>
+    <width>965</width>
+    <height>955</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -15,7 +15,7 @@
   </property>
   <layout class="QHBoxLayout" name="horizontalLayout" stretch="0,1">
    <item>
-    <layout class="QVBoxLayout" name="verticalLayout_2" stretch="0,1,0,1,0,1,0,1,0,0">
+    <layout class="QVBoxLayout" name="verticalLayout_2" stretch="0,1,0,1,0,1,0,0,0,0,0">
      <item>
       <widget class="QLabel" name="label_4">
        <property name="font">
@@ -314,6 +314,34 @@
       </widget>
      </item>
      <item>
+      <layout class="QVBoxLayout" name="verticalLayout_3">
+       <item>
+        <layout class="QFormLayout" name="formLayout_3">
+         <item row="2" column="0">
+          <widget class="QPushButton" name="encode_button">
+           <property name="text">
+            <string>Encode</string>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="1">
+          <widget class="QComboBox" name="encode_combobox"/>
+         </item>
+         <item row="1" column="0">
+          <widget class="QLabel" name="label_9">
+           <property name="text">
+            <string>Encoding Map</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1">
+          <widget class="QLineEdit" name="encode_lineedit"/>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </item>
+     <item>
       <layout class="QFormLayout" name="feature_engr_layout">
        <item row="1" column="0">
         <widget class="QPushButton" name="log_button">
@@ -350,13 +378,23 @@
         </widget>
        </item>
        <item row="3" column="0">
+        <widget class="QPushButton" name="dummies_button">
+         <property name="text">
+          <string>Create Dummies</string>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="1">
+        <widget class="QComboBox" name="dummies_combobox"/>
+       </item>
+       <item row="4" column="0">
         <widget class="QPushButton" name="drop_button">
          <property name="text">
           <string>Drop Feature</string>
          </property>
         </widget>
        </item>
-       <item row="3" column="1">
+       <item row="4" column="1">
         <widget class="QComboBox" name="drop_combobox">
          <property name="maximumSize">
           <size>
@@ -366,14 +404,14 @@
          </property>
         </widget>
        </item>
-       <item row="4" column="0">
+       <item row="5" column="0">
         <widget class="QPushButton" name="undrop_button">
          <property name="text">
           <string>Undrop Feature</string>
          </property>
         </widget>
        </item>
-       <item row="4" column="1">
+       <item row="5" column="1">
         <widget class="QComboBox" name="undrop_combobox">
          <property name="maximumSize">
           <size>
@@ -383,14 +421,14 @@
          </property>
         </widget>
        </item>
-       <item row="5" column="0">
+       <item row="6" column="0">
         <widget class="QPushButton" name="create_button">
          <property name="text">
           <string>Create Feature</string>
          </property>
         </widget>
        </item>
-       <item row="5" column="1">
+       <item row="6" column="1">
         <widget class="QLineEdit" name="create_lineedit"/>
        </item>
       </layout>
