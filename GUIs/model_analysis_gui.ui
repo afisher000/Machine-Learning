@@ -15,26 +15,7 @@
   </property>
   <layout class="QHBoxLayout" name="horizontalLayout" stretch="1,0,0">
    <item>
-    <layout class="QVBoxLayout" name="verticalLayout">
-     <item>
-      <widget class="QScrollArea" name="scrollArea">
-       <property name="widgetResizable">
-        <bool>true</bool>
-       </property>
-       <widget class="QWidget" name="pipeline">
-        <property name="geometry">
-         <rect>
-          <x>0</x>
-          <y>0</y>
-          <width>375</width>
-          <height>761</height>
-         </rect>
-        </property>
-        <layout class="QGridLayout" name="gridLayout"/>
-       </widget>
-      </widget>
-     </item>
-    </layout>
+    <layout class="QVBoxLayout" name="verticalLayout"/>
    </item>
    <item>
     <layout class="QVBoxLayout" name="verticalLayout_6" stretch="0">
