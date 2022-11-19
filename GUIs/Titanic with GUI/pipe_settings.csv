@@ -1,0 +1,16 @@
+,is_selected,scale_strat,impute_strat,impute_by
+PassengerId,False,none,none,none
+Survived,False,none,none,none
+Pclass,False,none,none,none
+Name,False,none,none,none
+Sex,False,none,none,none
+Age,False,none,none,none
+SibSp,False,none,none,none
+Parch,False,none,none,none
+Ticket,False,none,none,none
+Fare,False,none,none,none
+Cabin,False,none,none,none
+Embarked,True,none,none,none
+Embarked_C,True,none,none,none
+Embarked_Q,True,none,none,none
+Embarked_S,True,none,none,none
