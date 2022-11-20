@@ -4,6 +4,23 @@ from sklearn.impute import SimpleImputer
 import pandas as pd
 import numpy as np
 
+class FeatureTransforms(BaseEstimator, TransformerMixin):
+    def __init__(self, gui, file):
+        self.gui = gui
+        self.file = file
+
+    def fit(self, df, y=None):
+        return self
+
+    def transform(self, df, y=None):
+        with open(self.file,'r') as f:
+            code = f.read()
+        local_dict = {'df':df}
+        exec(code, globals(), local_dict)
+        return local_dict['df']
+
+
+
 class Imputation(BaseEstimator, TransformerMixin):
     '''Pass imputation instructions through a dictionary parameter. Simple mean and median 
     imputation needs to be implemented. You can also impute according to another category.'''
@@ -50,6 +67,7 @@ class Imputation(BaseEstimator, TransformerMixin):
             elif strategy == 'byvalue':
                 for na_feature, value in features:
                     df.loc[row_indexer,[na_feature]] = df[na_feature].fillna(value)
+
         return df
 
 
@@ -81,3 +99,18 @@ class Scaling(BaseEstimator, TransformerMixin):
             elif scale_type=='quantile':
                 df.loc[row_indexer,features] = self.quantile_scaler.transform(df[features])  
         return df
+
+
+class KeepSelectedFeatures(BaseEstimator, TransformerMixin):
+    def __init__(self, features):
+        self.features = features
+
+    def fit(self, df, y=None):
+        return self
+
+    def transform(self, df, y=None):
+        df = df[self.features]
+        nan_features = df.columns[df.isna().sum()>0].to_list()
+        if len(nan_features)>0:
+            raise ValueError(f'Null values in {", ".join(nan_features)}')
+        return df[self.features]

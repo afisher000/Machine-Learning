@@ -11,6 +11,9 @@ Ticket,Ticket,False,cat
 Fare,Fare,False,num
 Cabin,Cabin,False,cat
 Embarked,Embarked,False,cat
-Embarked_S,Embarked_S,False,pnum
-Embarked_C,Embarked_C,False,pnum
-Embarked_Q,Embarked_Q,False,pnum
+binFare,binFare,False,cat
+encSex,encSex,False,pnum
+Sex_male,Sex_male,False,pnum
+Sex_female,Sex_female,False,pnum
+test,test,False,pnum
+clipAge,clipAge,False,num
