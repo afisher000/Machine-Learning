@@ -207,5 +207,4 @@ class FeatureEngr():
     def add_residues(self, residues):
         self.data['residuals'] = residues
         self.settings.loc['residuals'] = ['residuals', False, 'num']
-
         return

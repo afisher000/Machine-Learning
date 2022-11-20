@@ -24,6 +24,8 @@ class Pipe():
         for feature in features:
             if feature not in self.settings.index:
                 self.settings.loc[feature] = [False, 'none','none','none']
+    
+        self.settings = self.settings.sort_index()
         self.settings.to_csv(path, index=True)
         
         

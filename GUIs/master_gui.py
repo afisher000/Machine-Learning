@@ -29,9 +29,10 @@ rcParams.update({'figure.autolayout': True}) # to automatically fit long axis ti
 # Sort features by name in pipeline window
 # Don't write feature engineering with target feature to txt file.
 # Add time of run and circle to death to see that it is running
-# Only allow one of each window to be open
-# Update pipeline features from data analysis
-
+# How to implement bagging with different hyperparaters models?
+# Put error if trying to use dummies on categories with too many entries
+# Add "current_model" to model_analysis classes
+# Soft voting by saving predictions to a dataframe, when fitting on the data frame...
 
 mw_Ui, mw_Base = uic.loadUiType('master_window.ui')
 class MainGUI(mw_Base, mw_Ui):

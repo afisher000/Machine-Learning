@@ -1,4 +1,4 @@
-
+# %%
 from ClassifierAnalysis import ClassifierModels
 from RegressorAnalysis import RegressorModels
 from Pipelines import FeatureTransforms, Imputation, Scaling, KeepSelectedFeatures
@@ -64,7 +64,8 @@ class ModelGUI(mw_Base, mw_Ui):
         return
 
     def fit_model(self):
-        self.apply_pipeline()
+        if self.apply_pipeline():
+            return
 
         self.results_label.setText('')
         param_grid = self.get_param_grid()
@@ -77,9 +78,10 @@ class ModelGUI(mw_Base, mw_Ui):
         opt_params = self.get_model().model.get_params()
         self.optparam_label.setText(', '.join([f'{key}={opt_params[key]}' for key in param_grid.keys()]))
 
-        if self.model_type == 'regressor':
-            residues = self.get_model().model.predict(self.X) - self.transform_target(self.y)
-            self.file_manager.featengr.add_residues(residues)
+        # Can not due when categorys
+        residues = self.get_model().model.predict(self.X) - self.transform_target(self.y)
+        self.file_manager.featengr.add_residues(residues)
+
 
     def plot_learning_curve(self):
         model_str = self.get_model_string()
@@ -183,9 +185,11 @@ class ModelGUI(mw_Base, mw_Ui):
                 qtw.QCheckBox(param, self), qtw.QLineEdit(str(paramrange), self)
             )
     def apply_pipeline(self):
-        # TODO - something to show pipeline was updated
+        # Save pipe settings, check for new features, and update pipeline widgets
         self.file_manager.pipe.save_settings()
-        
+        self.file_manager.pipe.load_files()
+        self.populate_pipeline_widgets()
+
         # Read data, get target
         train_path = os.path.join(self.file_manager.directory, 'train.csv')
         test_path = os.path.join(self.file_manager.directory, 'test.csv')
@@ -223,11 +227,12 @@ class ModelGUI(mw_Base, mw_Ui):
             self.X_test = pipeline.transform(test)
         except Exception as e:
             qtw.QMessageBox.critical(self, 'Pipeline Error', f'Raised following error: {e}')
-            return
+            return 1
 
         self.model_analysis.X = self.X
         self.X_test = self.X_test
         self.model_analysis.y = self.transform_target(self.y)
+        return 0
 
     def transform_target(self, y, invert=False):
         transform = self.targettransform_combobox.currentText()
@@ -247,7 +252,11 @@ class ModelGUI(mw_Base, mw_Ui):
 
 
     def populate_pipeline_widgets(self):
+        # Clear grid layout
         grid = self.pipeline.layout()
+        for i in reversed(range(grid.count())): 
+            grid.itemAt(i).widget().setParent(None)
+
         
         # Get discrete features for bycategory menu
         discrete_features_plus_none = self.file_manager.featengr.get_discrete_features()
@@ -286,3 +295,4 @@ class ModelGUI(mw_Base, mw_Ui):
         grid.setRowStretch(grid.rowCount(), 1)
         self.file_manager.pipe.update_widgets()
         return  
+# %%

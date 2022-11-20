@@ -1,0 +1,16 @@
+,is_selected,scale_strat,impute_strat,impute_by
+Age,True,standard,median,none
+Embarked_C,False,none,none,none
+Embarked_Q,True,none,none,none
+Embarked_S,False,none,none,none
+Family,True,minmax,most_frequent,none
+Fare,False,standard,median,none
+Parch,True,minmax,most_frequent,none
+PassengerId,False,none,none,none
+Pclass,True,none,none,none
+SibSp,False,none,none,none
+Survived,False,none,none,none
+encSex,True,none,most_frequent,none
+isKid,True,none,none,none
+logFare,True,standard,median,none
+residuals,False,none,none,none
