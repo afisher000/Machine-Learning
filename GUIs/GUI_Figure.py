@@ -18,6 +18,7 @@ class GUI_Figure():
         self.ax = self.canvas.figure.subplots(ncols=ncols)
         return
     
+
     def custom_plot(self, data, plot_type, target_feature, n_features):
         self.reset_figure(ncols=1)
         if plot_type == 'correlation':
@@ -56,6 +57,9 @@ class GUI_Figure():
             median_ordering = data.groupby(by=x)[y].median().sort_values().index.tolist()
             data[x] = data[x].cat.reorder_categories(median_ordering)
             
+        if data[x].nunique()>0.05*len(data):
+            return
+
         if agg_fcn is None:
             sns.boxenplot(data=data, x=x, y=y, hue=hue, ax=self.ax[0])
         else:
@@ -70,6 +74,14 @@ class GUI_Figure():
     def histplot_and_piechart(self, data, x, hue, stat=None):
         # Add check for number of unique in x?
         self.reset_figure(ncols=2)
+
+        if data[x].nunique()>0.05*len(data):
+            print('save yourself!')
+            return
+        if hue is not None:
+            if data[hue].nunique()>0.05*len(data):
+                print('save yourself!')
+                return
         sns.histplot(data=data, x=x, hue=hue, stat='count', multiple='stack', kde=False, ax=self.ax[0])
         self.ax[0].tick_params(axis='x', rotation=90)
         data[x].value_counts(dropna=False).sort_index().plot.pie(autopct='%.0f%%', ax=self.ax[1])

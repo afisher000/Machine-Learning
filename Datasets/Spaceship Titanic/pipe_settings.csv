@@ -1,0 +1,33 @@
+,is_selected,scale_strat,impute_strat,impute_by
+Age,False,none,none,none
+Deck_A,False,none,none,none
+Deck_B,False,none,none,none
+Deck_C,False,none,none,none
+Deck_D,False,none,none,none
+Deck_E,False,none,none,none
+Deck_F,False,none,none,none
+Deck_G,False,none,none,none
+Deck_T,False,none,none,none
+Destination_55 Cancri e,False,none,none,none
+Destination_PSO J318.5-22,False,none,none,none
+Destination_TRAPPIST-1e,False,none,none,none
+FoodCourt,False,none,none,none
+Group,False,none,none,none
+GroupNum,False,none,mean,none
+HomePlanet_Earth,False,none,none,none
+HomePlanet_Europa,False,none,none,none
+HomePlanet_Mars,False,standard,none,none
+MoneySpent,False,minmax,none,none
+Num,False,none,none,none
+RoomService,False,none,none,none
+ShoppingMall,False,none,none,none
+Spa,False,none,none,none
+VRDeck,False,none,none,none
+encCryoSleep,True,none,median,none
+encSide,False,none,none,none
+encTransported,False,none,none,none
+encVIP,True,none,most_frequent,none
+isKid,False,none,none,none
+logMoneySpent,False,none,none,none
+residuals,False,none,none,none
+spentMoney,False,none,none,none

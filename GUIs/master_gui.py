@@ -52,6 +52,9 @@ class MainGUI(mw_Base, mw_Ui):
 
     def select_directory(self):
         directory = str(qtw.QFileDialog.getExistingDirectory(self, 'Select Directory'))
+        if not directory:
+            return
+
         if ('train.csv' not in os.listdir(directory)) or ('test.csv' not in os.listdir(directory)):
             qtw.QMessageBox.critical(self, 'Invalid Directory', 'Directory must include "test.csv" and "train.csv" files.')
             return
