@@ -7,10 +7,10 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 class GUI_Figure():
-    def __init__(self, GUI, layout):
-        self.GUI = GUI
+    def __init__(self, gui, layout):
+        self.gui = gui
         self.canvas = FigureCanvas(Figure(figsize=(3,3)))
-        layout.addWidget(NavigationToolbar(self.canvas, self.GUI))
+        layout.addWidget(NavigationToolbar(self.canvas, self.gui))
         layout.addWidget(self.canvas)
     
     def reset_figure(self, ncols):

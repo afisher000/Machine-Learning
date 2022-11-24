@@ -63,9 +63,6 @@ class BaseModel():
         self.boosting = self.update_boosting_model()
         return
 
-    def get_hyperparams(self):
-        return list(self.param_grid.keys())
-
     def update_bagging_model(self):
         self.bagging = BaggingModel(self.current_estimator, self.model_type)
         return
@@ -75,10 +72,11 @@ class BaseModel():
 
 
 class ModelAnalysis():
-    def __init__(self, main_gui, model_type, X=None, y=None, scoring=None):
+    def __init__(self, main_gui, X=None, X_test=None, y=None, scoring=None):
         self.main_gui = main_gui
-        self.model_type = model_type #classifier or regressor
+        self.model_type = main_gui.model_type #classifier or regressor
         self.X = X
+        self.X_test = X_test
         self.y = y
         self.scoring = scoring
         self.models_folder = 'SavedModels'
@@ -88,6 +86,10 @@ class ModelAnalysis():
     def load_saved_models(self):
         saved_models = {}
         dirpath = os.path.join(self.main_gui.directory, self.models_folder)
+
+        if not os.path.exists(dirpath):
+            os.mkdir(dirpath)
+
         files = os.listdir(dirpath)
         for file in files:
             if file.endswith('.pkl'):
@@ -98,7 +100,7 @@ class ModelAnalysis():
     def save_model(self, model_label, model_string, bagging, boosting):
         # Test whether this saves a reference to the model or a copy of the model
         # distinct from the model_string.
-        model, _ = self.get_model(model_string, bagging, boosting)
+        model, _ = self.get_model_object(model_string, bagging, boosting)
         model.current_estimator.fit(self.X, self.y)
         model.predictions = model.current_estimator.predict(self.X_test)
         if model.predictions is None:
@@ -153,7 +155,7 @@ class ModelAnalysis():
             }
         }
         base_estimator_dict = { 
-            'ridge':{'regressor':Ridge(), 'classifier':RidgeClassifier},
+            'ridge':{'regressor':Ridge(), 'classifier':RidgeClassifier()},
             'supportvector':{'regressor':SVR(cache_size=1000), 'classifier':SVC(cache_size=1000)},
             'sgd':{'regressor':SGDRegressor(), 'classifier':SGDClassifier()},
             'randomforest':{'regressor':RandomForestRegressor(), 'classifier':RandomForestClassifier()},
@@ -170,51 +172,51 @@ class ModelAnalysis():
             )
         return defined_models
 
-    def get_model(self, model_string, bagging, boosting):
+    def get_model_object(self, model_string, bagging, boosting):
         base_estimator = self.defined_models[model_string]
         if bagging:
-            model = base_estimator.bagging
+            model_object = base_estimator.bagging
             model_label = model_string + ' with bagging'
         elif boosting:
-            model = base_estimator.boosting
+            model_object = base_estimator.boosting
             model_label = model_string + ' with boosting'
         else:
-            model = base_estimator
+            model_object = base_estimator
             model_label = model_string
-        return model, model_label
+        return model_object, model_label
 
     def gridsearch(self, model_string, cv=10, param_grid=None, bagging=False, boosting=False):
         '''Specify model by string.'''
         if model_string not in self.defined_models.keys():
             raise ValueError('Model not found in defined models')
             return 1
-        model, _ = self.get_model(model_string, bagging, boosting)
+        model_object, _ = self.get_model_object(model_string, bagging, boosting)
 
 
         # If param_grid not specified, use single default hyperparameter
         if param_grid is None:
-            default_hyperparam = list(model.param_grid.keys())[0]
-            param_grid = {default_hyperparam:model.param_grid[default_hyperparam]}
+            default_hyperparam = list(model_object.param_grid.keys())[0]
+            param_grid = {default_hyperparam:model_object.param_grid[default_hyperparam]}
 
         # Fit grid
-        grid = GridSearchCV(model.model, n_jobs=-1, cv=cv, param_grid=param_grid, scoring=self.scoring)
+        grid = GridSearchCV(model_object.current_estimator, n_jobs=-1, cv=cv, param_grid=param_grid, scoring=self.scoring)
         grid.fit(self.X, self.y)
         scores = cross_val_score(grid.best_estimator_, self.X, self.y, cv=10, n_jobs=-1, scoring=self.scoring)
        
         # Update model
-        model.score = scores.mean()
-        model.current_estimator = grid.best_estimator_
-        model.current_estimator.fit(self.X, self.y)
-        model.predictions = model.current_estimator.predict(self.X_test)
+        model_object.score = scores.mean()
+        model_object.current_estimator = grid.best_estimator_
+        model_object.current_estimator.fit(self.X, self.y)
+        model_object.predictions = model_object.current_estimator.predict(self.X_test)
         return scores
 
 
     def learning_curve(self, model_string, samples=10, cv=10, ax=None, bagging=False, boosting=False):
         ''' Uses best model of class specified by model string to create learning curve.'''
-        model, model_label = self.get_model(model_string, bagging, boosting)
+        model_object, model_label = self.get_model_object(model_string, bagging, boosting)
 
         train_sizes, train_scores, valid_scores = learning_curve( 
-            model, self.X, self.y, train_sizes = np.linspace(.1, 1, samples), cv=cv, n_jobs=-1, scoring=self.scoring
+            model_object.current_estimator, self.X, self.y, train_sizes = np.linspace(.1, 1, samples), cv=cv, n_jobs=-1, scoring=self.scoring
         )
         if ax is None:
             fig, ax = plt.subplots()
@@ -227,11 +229,11 @@ class ModelAnalysis():
         return
 
 
-    def validation_curve(self, model_string, param_name, param_range, cv=10, ax=None, bagging=False, boosting=False):
-        model, model_label = self.get_model(model_string, bagging, boosting)
+    def validation_curve(self, param_name, param_range, model_string=None, cv=10, ax=None, bagging=False, boosting=False):
+        model_object, model_label = self.get_model_object(model_string, bagging, boosting)
         
         train_scores, valid_scores = validation_curve( 
-            model, self.X, self.y, param_name=param_name, param_range=param_range, cv=cv, n_jobs=-1, scoring=self.scoring
+            model_object.current_estimator, self.X, self.y, param_name=param_name, param_range=param_range, cv=cv, n_jobs=-1, scoring=self.scoring
         )
 
         if ax is None:

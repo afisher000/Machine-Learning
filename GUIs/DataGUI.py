@@ -20,8 +20,6 @@ class DataGUI(mw_Base, mw_Ui):
         
         # Import Layout
         self.setupUi(self)
-        self.file_manager = main_gui.file_manager
-        self.file_manager.data_gui = self
         self.main_gui = main_gui
         self.figure = GUI_Figure(self, self.plot_layout)
         self.update_menus()
@@ -68,7 +66,7 @@ class DataGUI(mw_Base, mw_Ui):
             qtw.QMessageBox.critical(self, 'Invalid minval or maxval', 'Both inputs must be entered and numerical values')
             return
 
-        self.file_manager.featengr.new_feature('clip', feature=feature, clip_range = [minval, maxval])
+        self.main_gui.featengr.new_feature('clip', feature=feature, clip_range = [minval, maxval])
         self.minval_lineedit.setText('')
         self.maxval_lineedit.setText('')
         self.clip_combobox.setCurrentText('none')
@@ -78,7 +76,7 @@ class DataGUI(mw_Base, mw_Ui):
         feature = self.log_combobox.currentText()
         if feature == 'none':
             return
-        self.file_manager.featengr.new_feature('log1p', feature=feature)
+        self.main_gui.featengr.new_feature('log1p', feature=feature)
         self.log_combobox.setCurrentText('none')
         self.update_menus()
 
@@ -86,7 +84,7 @@ class DataGUI(mw_Base, mw_Ui):
         feature = self.bin_combobox.currentText()
         if feature == 'none':
             return
-        self.file_manager.featengr.new_feature('bin', feature=feature)
+        self.main_gui.featengr.new_feature('bin', feature=feature)
         self.bin_combobox.setCurrentText('none')
         self.update_menus()
 
@@ -94,7 +92,7 @@ class DataGUI(mw_Base, mw_Ui):
         feature = self.parse_combobox_text(self.drop_combobox)
         if feature is None:
             return
-        self.file_manager.featengr.new_feature('drop', feature=feature)
+        self.main_gui.featengr.new_feature('drop', feature=feature)
         self.drop_combobox.setCurrentText('none')
         self.update_menus()
 
@@ -102,7 +100,7 @@ class DataGUI(mw_Base, mw_Ui):
         feature = self.dummies_combobox.currentText()
         if feature == 'none':
             return 
-        self.file_manager.featengr.new_feature('dummies', feature=feature)
+        self.main_gui.featengr.new_feature('dummies', feature=feature)
         self.dummies_combobox.setCurrentText('none')
         self.update_menus()
 
@@ -110,12 +108,12 @@ class DataGUI(mw_Base, mw_Ui):
         feature = self.undrop_combobox.currentText()
         if feature == '':
             return
-        self.file_manager.featengr.new_feature('undrop', feature=feature)
+        self.main_gui.featengr.new_feature('undrop', feature=feature)
         self.update_menus()
 
     def create_feature_from_code(self):
         code = self.create_lineedit.text()
-        if not self.file_manager.featengr.new_feature('code', code=code):
+        if not self.main_gui.featengr.new_feature('code', code=code):
             self.create_lineedit.setText('')
             self.update_menus()
 
@@ -128,7 +126,7 @@ class DataGUI(mw_Base, mw_Ui):
             
 
 
-        if not self.file_manager.featengr.new_feature('encode', feature=feature, map_str=map_str, encodeby=encodeby):
+        if not self.main_gui.featengr.new_feature('encode', feature=feature, map_str=map_str, encodeby=encodeby):
             self.encode_combobox.setCurrentText('none')
             self.encode_lineedit.setText('')
             self.encodeby_combobox.setCurrentText('map')
@@ -139,19 +137,19 @@ class DataGUI(mw_Base, mw_Ui):
         return
 
     def update_menus(self):
-        dropped_features = self.file_manager.featengr.get_features_by_isdropped(True)
-        undropped_features = self.file_manager.featengr.get_features_by_isdropped(False, prefix=True)
+        dropped_features = self.main_gui.featengr.get_features_by_isdropped(True)
+        undropped_features = self.main_gui.featengr.get_features_by_isdropped(False, prefix=True)
 
         undropped_features_plus_none = undropped_features
         undropped_features_plus_none.insert(0, 'none')
 
-        num_pnum_features_plus_none = self.file_manager.featengr.get_features_by_type(['num','pnum'])
+        num_pnum_features_plus_none = self.main_gui.featengr.get_features_by_type(['num','pnum'])
         num_pnum_features_plus_none.insert(0, 'none')
 
-        num_features_plus_none = self.file_manager.featengr.get_features_by_type('num')
+        num_features_plus_none = self.main_gui.featengr.get_features_by_type('num')
         num_features_plus_none.insert(0, 'none')
 
-        cat_features_plus_none = self.file_manager.featengr.get_features_by_type('cat')
+        cat_features_plus_none = self.main_gui.featengr.get_features_by_type('cat')
         cat_features_plus_none.insert(0, 'none')
 
         # Specify options for each combobox
@@ -184,7 +182,7 @@ class DataGUI(mw_Base, mw_Ui):
         title = self.title_lineedit.text()
         text = self.text_textedit.toPlainText()
         canvas = self.figure.canvas
-        self.file_manager.notes.save_notes(title, text, canvas)
+        self.main_gui.notes.save_notes(title, text, canvas)
         
         # Reset GUI inputs
         self.title_lineedit.setText('')
@@ -213,10 +211,10 @@ class DataGUI(mw_Base, mw_Ui):
         )
         agg_fcn = self.aggfcn_combobox.currentData()
         
-        data = self.file_manager.featengr.data
-        num_features = self.file_manager.featengr.get_features_by_type('num')
-        pnum_features = self.file_manager.featengr.get_features_by_type('pnum')
-        cat_features = self.file_manager.featengr.get_features_by_type('cat')
+        data = self.main_gui.featengr.data
+        num_features = self.main_gui.featengr.get_features_by_type('num')
+        pnum_features = self.main_gui.featengr.get_features_by_type('pnum')
+        cat_features = self.main_gui.featengr.get_features_by_type('cat')
         
         if x is None:
             qtw.QMessageBox.warning(self, 'No X specified', 'The X feature must be specified to plot')
@@ -282,7 +280,7 @@ class DataGUI(mw_Base, mw_Ui):
             )
             return
         n_features = self.customplot_spinbox.value()
-        data = self.file_manager.featengr.data
-        undropped_features = self.file_manager.featengr.get_features_by_isdropped(False)
+        data = self.main_gui.featengr.data
+        undropped_features = self.main_gui.featengr.get_features_by_isdropped(False)
         self.figure.custom_plot(data[undropped_features], plot_type, corrtarget, n_features)
         return

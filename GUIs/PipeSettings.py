@@ -3,14 +3,14 @@ import numpy as np
 import os
 
 class Pipe():
-    def __init__(self, file_manager):
-        self.file_manager = file_manager
+    def __init__(self, main_gui):
+        self.main_gui = main_gui
         self.settings_file = 'pipe_settings.csv'
         self.widget_ptrs = None
         
     def load_files(self):
         # Create file if does not exists
-        path = os.path.join(self.file_manager.directory, self.settings_file)
+        path = os.path.join(self.main_gui.directory, self.settings_file)
         if os.path.exists(path):
             self.settings = pd.read_csv(path, index_col=0)
             self.settings['impute_by'] = self.settings['impute_by'].astype('str')
@@ -20,7 +20,7 @@ class Pipe():
             
         
         # Update with new feature engineered features
-        features = self.file_manager.featengr.data.select_dtypes('number').columns
+        features = self.main_gui.featengr.data.select_dtypes('number').columns
         for feature in features:
             if feature not in self.settings.index:
                 self.settings.loc[feature] = [False, 'none','none','none']
@@ -63,7 +63,7 @@ class Pipe():
                 impute_by = 'none'
             self.settings.loc[feature] = [is_selected, scale_strat, impute_strat, impute_by]
         
-        path = os.path.join(self.file_manager.directory, self.settings_file)
+        path = os.path.join(self.main_gui.directory, self.settings_file)
         self.settings.to_csv(path)
 
     def get_scaling_dict(self):

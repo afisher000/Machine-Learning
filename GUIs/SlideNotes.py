@@ -3,12 +3,12 @@ from pptx import Presentation
 import os
 
 class Notes():
-    def __init__(self, file_manager):
-        self.file_manager = file_manager
+    def __init__(self, main_gui):
+        self.main_gui = main_gui
         self.notes_file = 'slide_notes.pptx'
         
     def save_notes(self, title, text, canvas):
-        path = os.path.join(self.file_manager.directory, self.notes_file)
+        path = os.path.join(self.main_gui.directory, self.notes_file)
         ppt = Presentation(path) if os.path.exists(path) else Presentation()
         
         png_file = 'temp.png'

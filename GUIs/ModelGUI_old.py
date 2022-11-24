@@ -1,7 +1,6 @@
 # %%
 from ClassifierAnalysis import ClassifierModels
 from RegressorAnalysis import RegressorModels
-from ModelAnalysis import ModelAnalysis
 from Pipelines import FeatureTransforms, Imputation, Scaling, KeepSelectedFeatures
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import PolynomialFeatures
@@ -33,6 +32,7 @@ class ModelGUI(mw_Base, mw_Ui):
         self.figure = GUI_Figure(self, self.plot_layout)
         self.populate_pipeline_widgets()
         self.initialize_model()
+        self.update_hyper_parameters()
         self.targettransform_combobox.addItems(['none', 'log1p', 'encoding'])
 
         # Signals and Slots
@@ -42,39 +42,23 @@ class ModelGUI(mw_Base, mw_Ui):
         self.bagging_checkbox.stateChanged.connect(self.toggle_bagging)
         self.boosting_checkbox.stateChanged.connect(self.toggle_boosting)
         self.learningcurve_button.clicked.connect(self.plot_learning_curve)
-        self.model_combobox.currentTextChanged.connect(self.update_hyperparam_inputs)
+        self.model_combobox.currentTextChanged.connect(self.update_hyper_parameters)
         self.submission_button.clicked.connect(self.create_submission)
         self.validation_button.clicked.connect(self.plot_validation_curve)
 
 
-    def get_current_model_object(self):
-        model_string = self.model_combobox.currentText()
-        bagging = self.bagging_checkbox.isChecked()
-        boosting = self.boosting_checkbox.isChecked()
-        model_object, _ = self.model_analysis.get_model_object(model_string, bagging, boosting)
-        return model_object
-
+        
     def create_submission(self):
         y_pred = self.transform_target( 
-            self.get_current_model_object.predictions, invert=True
+            self.get_model().model.predict(self.X_test), invert=True
         )
         predictions = pd.DataFrame({
-            self.main_gui.id_feature:self.main_gui.id_test, 
+            self.main_gui.id_feature:self.id_test, 
             self.main_gui.target_feature:y_pred
         })
         submission_path = os.path.join(self.main_gui.directory, 'submission.csv')
         predictions.to_csv(submission_path, index=False)
         return
-
-    def get_model_options_dict(self):
-        model_options_dict = { 
-            'model_string':self.model_combobox.currentText(),
-            'bagging':self.bagging_checkbox.isChecked(),
-            'boosting':self.boosting_checkbox.isChecked(),
-            'cv':self.cvfold_spinbox.value()
-        }
-        return model_options_dict
-
 
     def fit_model(self):
         if self.apply_pipeline():
@@ -82,33 +66,35 @@ class ModelGUI(mw_Base, mw_Ui):
 
         self.results_label.setText('')
         param_grid = self.get_param_grid()
-        model_options = self.get_model_options_dict()
-        scores = self.model_analysis.gridsearch(**model_options, param_grid=param_grid)
+        model_str = self.get_model_string()
+        cv = self.cvfold_spinbox.value()
+        scores = self.model_analysis.gridsearch(model_str, param_grid=param_grid, cv=cv)
 
         # Print results
-        self.results_label.setText(f'{model_options["model_string"]}: {scores.mean():.3f} ({scores.std():.3f})')
-        optimized_params = self.get_current_model_object().current_estimator.get_params()
-        self.optparam_label.setText(', '.join([f'{key}={optimized_params[key]}' for key in param_grid.keys()]))
+        self.results_label.setText(f'{model_str}: {scores.mean():.3f} ({scores.std():.3f})')
+        opt_params = self.get_model().model.get_params()
+        self.optparam_label.setText(', '.join([f'{key}={opt_params[key]}' for key in param_grid.keys()]))
 
         # Can not due when target is category dtype
-        if self.main_gui.model_type=='regressor' or self.targettransform_combobox.currentText()=='encoding':
-            residues = self.get_current_model_object().predictions - self.transform_target(self.y)
+        if self.model_type=='regressor' or self.targettransform_combobox.currentText()=='encoding':
+            residues = self.get_model().model.predict(self.X) - self.transform_target(self.y)
             self.main_gui.featengr.add_residues(residues)
 
 
 
 
     def plot_learning_curve(self):
-        model_options = self.get_model_options_dict()
+        model_str = self.get_model_string()
         cv = self.cvfold_spinbox.value()
 
         self.figure.reset_figure(ncols=1)
-        self.model_analysis.learning_curve(samples=10, **model_options, ax=self.figure.ax)
+        self.model_analysis.learning_curve(model_str, samples=10, cv=cv, ax=self.figure.ax)
         self.figure.canvas.draw()
         return
 
     def plot_validation_curve(self):
-        model_options = self.get_model_options_dict()
+        model_str = self.get_model_string()
+        cv = self.cvfold_spinbox.value()
         param_grid = self.get_param_grid()
         if not param_grid:
             qtw.QMessageBox.critical(self, 'No Parameter Selected', 'Select a hyperparameter to plot against.')
@@ -117,7 +103,7 @@ class ModelGUI(mw_Base, mw_Ui):
         param_name, param_range = list(param_grid.items())[0]
 
         self.figure.reset_figure(ncols=1)
-        self.model_analysis.validation_curve(param_name, param_range, **model_options, ax=self.figure.ax)
+        self.model_analysis.validation_curve(model_str, param_name, param_range, cv=cv, ax=self.figure.ax)
         self.figure.canvas.draw()
         return
 
@@ -125,31 +111,54 @@ class ModelGUI(mw_Base, mw_Ui):
     def toggle_bagging(self):
         if self.bagging_checkbox.isChecked() and self.boosting_checkbox.isChecked():
             self.boosting_checkbox.setChecked(False)
-        self.update_hyperparam_inputs()
+        self.update_hyper_parameters()
 
     def toggle_boosting(self):
         if self.bagging_checkbox.isChecked() and self.boosting_checkbox.isChecked():
             self.bagging_checkbox.setChecked(False)
-        self.update_hyperparam_inputs()
+        self.update_hyper_parameters()
 
     def set_model_scoring(self):
         self.model_analysis.scoring = self.scoring_combobox.currentText()
         return
 
     def initialize_model(self):
-        scoring_options_dict = { 
-            'classifier':['accuracy','f1','neg_log_loss','precision','recall'],
-            'regressor':[ 
+        train_path = os.path.join(self.main_gui.directory, 'train.csv')
+        train = self.main_gui.featengr.open_as_categoricals(train_path)
+        target_feature = self.main_gui.target_feature
+        if train[target_feature].nunique()<10:
+            self.model_type = 'classifier'
+            self.model_analysis = ClassifierModels()
+            scoring_options = ['accuracy','f1','neg_log_loss','precision','recall']
+            self.model_analysis.scoring = scoring_options[0]
+            
+        else:
+            self.model_type = 'regressor'
+            self.model_analysis = RegressorModels()
+            scoring_options = [ 
                 'neg_root_mean_squared_error','neg_mean_absolute_error',
                 'neg_mean_squared_log_error'
             ]
-        }
+            self.model_analysis.scoring = scoring_options[0]
+        self.scoring_combobox.addItems(scoring_options)
+        self.model_combobox.addItems(self.model_analysis.models.keys())
 
-        self.model_analysis = ModelAnalysis(self.main_gui)
-        self.scoring_combobox.addItems(scoring_options_dict[self.main_gui.model_type])
-        self.model_analysis.scoring = self.scoring_combobox.currentText()
-        self.model_combobox.addItems(self.model_analysis.defined_models.keys())
-        self.update_hyperparam_inputs()
+    def get_model_string(self):
+        model_str = self.model_combobox.currentText()
+        if self.bagging_checkbox.isChecked():
+            model_str += '_bagging'
+        if self.boosting_checkbox.isChecked():
+            model_str += '_boosting'
+        return model_str
+
+    def get_model(self):
+        model_str = self.get_model_string()
+        if '_' in model_str:
+            base_model, strategy = model_str.split('_')
+            model = getattr(self.model_analysis.models[base_model], strategy)
+        else:
+            model = self.model_analysis.models[model_str]
+        return model
 
     def get_param_grid(self):
         param_grid = {}
@@ -163,8 +172,8 @@ class ModelGUI(mw_Base, mw_Ui):
                     qtw.QMessageBox.critical(self, 'Parameter Grid Error', f'Error raised: {e}')
         return param_grid
 
-    def update_hyperparam_inputs(self):
-        param_grid = self.get_current_model_object().param_grid
+    def update_hyper_parameters(self):
+        param_grid = self.get_model().param_grid
 
         # Clear paramgrid QFormLayout
         for row in reversed(range(self.paramgrid_layout.rowCount())):
@@ -175,7 +184,6 @@ class ModelGUI(mw_Base, mw_Ui):
             self.paramgrid_layout.addRow( 
                 qtw.QCheckBox(param, self), qtw.QLineEdit(str(paramrange), self)
             )
-
     def apply_pipeline(self):
         # Save pipe settings, check for new features, and update pipeline widgets
         self.main_gui.pipe.save_settings()
@@ -187,7 +195,11 @@ class ModelGUI(mw_Base, mw_Ui):
         test_path = os.path.join(self.main_gui.directory, 'test.csv')
         train = self.main_gui.featengr.open_as_categoricals(train_path)
         test = self.main_gui.featengr.open_as_categoricals(test_path)
-        self.y = train[self.main_gui.target_feature]
+
+        id_feature = self.main_gui.id_feature
+        target_feature = self.main_gui.target_feature
+        self.y = train[target_feature]
+        self.id_test = test[id_feature]
         
         # Build transformations
         scaling_dict = self.main_gui.pipe.get_scaling_dict()
@@ -211,14 +223,14 @@ class ModelGUI(mw_Base, mw_Ui):
         # Apply pipeline
         pipeline = Pipeline(transformations)
         try:
-            X = pipeline.fit_transform(train)
-            X_test = pipeline.transform(test)
+            self.X = pipeline.fit_transform(train)
+            self.X_test = pipeline.transform(test)
         except Exception as e:
             qtw.QMessageBox.critical(self, 'Pipeline Error', f'Raised following error: {e}')
             return 1
 
-        self.model_analysis.X = X
-        self.model_analysis.X_test = X_test
+        self.model_analysis.X = self.X
+        self.X_test = self.X_test
         self.model_analysis.y = self.transform_target(self.y)
         return 0
 
