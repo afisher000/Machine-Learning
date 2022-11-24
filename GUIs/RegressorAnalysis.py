@@ -12,7 +12,6 @@ from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
 from sklearn.neural_network import MLPClassifier, MLPRegressor
 from sklearn.svm import SVC, SVR
 from sklearn.model_selection import GridSearchCV, cross_val_predict, cross_val_score, learning_curve, validation_curve
-from sklearn.gaussian_process import GaussianProcessClassifier, GaussianProcessRegressor
 
 
 
