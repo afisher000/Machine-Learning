@@ -10,6 +10,7 @@ from GUI_Figure import GUI_Figure
 import pandas as pd
 import numpy as np
 import os
+import numbers
 
 # PyQt5 imports
 from PyQt5 import QtCore as qtc
@@ -56,7 +57,7 @@ class ModelGUI(mw_Base, mw_Ui):
 
     def create_submission(self):
         y_pred = self.transform_target( 
-            self.get_current_model_object.predictions, invert=True
+            self.get_current_model_object.test_predictions, invert=True
         )
         predictions = pd.DataFrame({
             self.main_gui.id_feature:self.main_gui.id_test, 
@@ -91,16 +92,14 @@ class ModelGUI(mw_Base, mw_Ui):
         self.optparam_label.setText(', '.join([f'{key}={optimized_params[key]}' for key in param_grid.keys()]))
 
         # Can not due when target is category dtype
-        if self.main_gui.model_type=='regressor' or self.targettransform_combobox.currentText()=='encoding':
-            residues = self.get_current_model_object().predictions - self.transform_target(self.y)
+        train_predictions = self.get_current_model_object().train_predictions
+        if isinstance(train_predictions[0], numbers.Number):
+            residues = train_predictions - self.transform_target(self.y)
             self.main_gui.featengr.add_residues(residues)
-
-
 
 
     def plot_learning_curve(self):
         model_options = self.get_model_options_dict()
-        cv = self.cvfold_spinbox.value()
 
         self.figure.reset_figure(ncols=1)
         self.model_analysis.learning_curve(samples=10, **model_options, ax=self.figure.ax)
@@ -147,8 +146,8 @@ class ModelGUI(mw_Base, mw_Ui):
 
         self.model_analysis = ModelAnalysis(self.main_gui)
         self.scoring_combobox.addItems(scoring_options_dict[self.main_gui.model_type])
-        self.model_analysis.scoring = self.scoring_combobox.currentText()
         self.model_combobox.addItems(self.model_analysis.defined_models.keys())
+        self.model_analysis.scoring = self.set_model_scoring()
         self.update_hyperparam_inputs()
 
     def get_param_grid(self):

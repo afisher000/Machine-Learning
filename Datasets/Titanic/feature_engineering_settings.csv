@@ -15,3 +15,4 @@ isKid,isKid,False,pnum
 binAge,binAge,False,cat
 logFare,logFare,False,num
 encSex,encSex,False,pnum
+residuals,residuals,False,num

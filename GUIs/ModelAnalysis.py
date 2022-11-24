@@ -58,9 +58,10 @@ class BaseModel():
         self.current_estimator = model
         self.param_grid = param_grid
         self.score = None
-        self.predictions = None
-        self.bagging = self.update_bagging_model()
-        self.boosting = self.update_boosting_model()
+        self.train_predictions = None
+        self.test_predictions = None
+        self.update_bagging_model()
+        self.update_boosting_model()
         return
 
     def update_bagging_model(self):
@@ -68,7 +69,7 @@ class BaseModel():
         return
 
     def update_boosting_model(self):
-        self.bagging = BoostingModel(self.current_estimator, self.model_type)
+        self.boosting = BoostingModel(self.current_estimator, self.model_type)
 
 
 class ModelAnalysis():
@@ -207,7 +208,9 @@ class ModelAnalysis():
         model_object.score = scores.mean()
         model_object.current_estimator = grid.best_estimator_
         model_object.current_estimator.fit(self.X, self.y)
-        model_object.predictions = model_object.current_estimator.predict(self.X_test)
+        model_object.train_predictions = model_object.current_estimator.predict(self.X)
+        model_object.test_predictions = model_object.current_estimator.predict(self.X_test)
+
         return scores
 
 
