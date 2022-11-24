@@ -197,9 +197,13 @@ class FeatureEngr():
         # Read or create featengr
         data_path = os.path.join(self.file_manager.directory, self.data_file)
         settings_path = os.path.join(self.file_manager.directory, self.settings_file)
+        featengr_path = os.path.join(self.file_manager.directory, self.featengr_file)
 
         if not os.path.exists(data_path):
             self.create_files()
+        elif not os.path.exists(featengr_path):
+            with open(featengr_path, 'w') as f:
+                pass
 
         self.data = self.open_as_categoricals(data_path)
         self.settings = pd.read_csv(settings_path, index_col=0)

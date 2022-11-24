@@ -11,11 +11,7 @@ Ticket,Ticket,False,cat
 Fare,Fare,False,num
 Cabin,Cabin,False,cat
 Embarked,Embarked,False,cat
-encSex,encSex,False,pnum
-Embarked_S,Embarked_S,False,pnum
-Embarked_C,Embarked_C,False,pnum
-Embarked_Q,Embarked_Q,False,pnum
-logFare,logFare,False,num
-Family,Family,False,pnum
-binAge,binAge,False,cat
 isKid,isKid,False,pnum
+binAge,binAge,False,cat
+logFare,logFare,False,num
+encSex,encSex,False,pnum
