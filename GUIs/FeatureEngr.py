@@ -9,6 +9,19 @@ class FeatureEngr():
         self.featengr_file = 'feature_engineering_code.txt'
         self.settings_file = 'feature_engineering_settings.csv'
         
+    def get_encoding_dict(self, map_str, feature=None):
+        if feature is None:
+            feature = self.file_manager.target_feature
+
+        encode_map = {}
+        for entry in map_str.split(','):
+            key, value = entry.split('=')
+            if key.strip() not in self.data[feature].values:
+                raise ValueError(f'Key "{key}" is invalid for given feature')
+            encode_map[key.strip()] = float(value.strip())
+        return encode_map
+
+
     def new_feature(self, transform, feature=None, map_str=None, encodeby=None, code=None, clip_range=None):
         if transform=='log1p':
             self.data['log'+feature] = np.log1p(self.data[feature])
@@ -67,12 +80,7 @@ class FeatureEngr():
             # Build encoding map
             if encodeby=='map':
                 try:
-                    encode_map = {}
-                    for entry in map_str.split(','):
-                        key, value = entry.split('=')
-                        if key.strip() not in self.data[feature].values:
-                            raise ValueError(f'Key "{key}" is invalid for given feature')
-                        encode_map[key.strip()] = float(value.strip())
+                    self.get_encoding_dict(map_str, feature)
                 except Exception as e:
                     self.file_manager.data_gui.raise_error('Invalid Map String', f'{e}')
                     return 1
@@ -157,12 +165,14 @@ class FeatureEngr():
     def create_files(self):
         # Read and differentiate train data
         data = pd.read_csv(os.path.join(self.file_manager.directory, 'train.csv'))
-        obj_features = data.select_dtypes('object').columns
+        
+        # Parse features
+        obj_features = data.select_dtypes(['object', 'bool']).columns
         num_features = data.select_dtypes('number').columns
         is_pnum = data[num_features].nunique().lt(11)
 
         # Convert to object dtypes to Categoricals
-        data[obj_features] = data[obj_features].fillna('Null')
+        data[obj_features] = data[obj_features].fillna('Null').astype('str')
         for feature in obj_features:
             data[feature] = pd.Categorical(data[feature], np.sort(data[feature].unique()))
         
@@ -186,9 +196,10 @@ class FeatureEngr():
 
     def open_as_categoricals(self, path):
         df = pd.read_csv(path)
-
-        obj_features = df.select_dtypes('object').columns
-        df[obj_features] = df[obj_features].fillna('Null')
+        
+        # Convert objects to categoricals
+        obj_features = df.select_dtypes(['object','bool']).columns
+        df[obj_features] = df[obj_features].fillna('Null').astype('str')
         for feature in obj_features:
             df[feature] = pd.Categorical(df[feature], np.sort(df[feature].unique()))
         return df
@@ -209,6 +220,11 @@ class FeatureEngr():
         self.settings = pd.read_csv(settings_path, index_col=0)
 
     def add_residues(self, residues):
+        # Add residuals
         self.data['residuals'] = residues
         self.settings.loc['residuals'] = ['residuals', False, 'num']
+
+        # Save to file
+        self.data.to_csv(os.path.join(self.file_manager.directory, self.data_file), index=False)
+        self.settings.to_csv(os.path.join(self.file_manager.directory, self.settings_file))
         return

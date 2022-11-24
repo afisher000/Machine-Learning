@@ -34,7 +34,7 @@ class ModelGUI(mw_Base, mw_Ui):
         self.populate_pipeline_widgets()
         self.initialize_model()
         self.update_hyper_parameters()
-        self.targettransform_combobox.addItems(['none', 'log1p'])
+        self.targettransform_combobox.addItems(['none', 'log1p', 'encoding'])
 
 
         
@@ -78,9 +78,12 @@ class ModelGUI(mw_Base, mw_Ui):
         opt_params = self.get_model().model.get_params()
         self.optparam_label.setText(', '.join([f'{key}={opt_params[key]}' for key in param_grid.keys()]))
 
-        # Can not due when categorys
-        residues = self.get_model().model.predict(self.X) - self.transform_target(self.y)
-        self.file_manager.featengr.add_residues(residues)
+        # Can not due when target is category dtype
+        if self.model_type=='regressor' or self.targettransform_combobox.currentText()=='encoding':
+            residues = self.get_model().model.predict(self.X) - self.transform_target(self.y)
+            self.file_manager.featengr.add_residues(residues)
+
+
 
 
     def plot_learning_curve(self):
@@ -234,18 +237,36 @@ class ModelGUI(mw_Base, mw_Ui):
         self.model_analysis.y = self.transform_target(self.y)
         return 0
 
-    def transform_target(self, y, invert=False):
+    def transform_target(self, y, invert=False, allow_encoding=False):
         transform = self.targettransform_combobox.currentText()
         if not invert:
             if transform == 'none':
                 return y
             elif transform == 'log1p':
                 return np.log1p(y)
+            elif transform == 'encoding':
+                map_str = self.encode_lineedit.text()
+                try:
+                    encoding_dict = self.file_manager.featengr.get_encoding_dict(map_str)
+                except Exception as e:
+                    qtw.QMessageBox.critical(self, 'Encoding Error', f'Raised following error: {e}\nApplying no transform')
+                    return y
+                return  pd.Series(y).map(encoding_dict).astype('float')
+                    
         else:
             if transform == 'none':
                 return y
             elif transform == 'log1p':
                 return np.exp(y)-1
+            elif transform == 'encoding':
+                map_str = self.encode_lineedit.text()
+                try:
+                    encoding_dict = self.file_manager.featengr.get_encoding_dict(map_str)
+                except Exception as e:
+                    qtw.QMessageBox.critical(self, 'Encoding Error', f'Raised following error: {e}\nApplying no transform')
+                    return y
+                inverted_encoding_dict = {v:k for k,v in encoding_dict.items()}
+                return pd.Series(y).map(inverted_encoding_dict).astype('float')
 
         return
 

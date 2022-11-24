@@ -237,11 +237,11 @@ class DataGUI(mw_Base, mw_Ui):
                 self.figure.scatterplot(data, x, y, hue, size, style)
             elif y in pnum_features:
                 self.figure.boxenplot_and_piechart( 
-                    data, x, y, hue, switch_axes=True
+                    data, x, y, hue, agg_fcn=agg_fcn, switch_axes=True
                 )
             elif y in cat_features:
                 self.figure.boxenplot_and_piechart( 
-                    data, x, y, hue, switch_axes=True, median_ordering=True
+                    data, x, y, hue, agg_fcn=agg_fcn, switch_axes=True, median_ordering=True
                 )
         elif x in pnum_features:
             if y in num_features:
@@ -254,12 +254,12 @@ class DataGUI(mw_Base, mw_Ui):
                 )
             elif y in cat_features:
                 self.figure.boxenplot_and_piechart( 
-                    data, x, y, hue, switch_axes=True, median_ordering=True 
+                    data, x, y, hue, agg_fcn=agg_fcn, switch_axes=True, median_ordering=True 
                 )
         elif x in cat_features:
             if y in num_features:
                 self.figure.boxenplot_and_piechart( 
-                    data, x, y, hue, median_ordering=True 
+                    data, x, y, hue, agg_fcn=agg_fcn, median_ordering=True 
                 )
             elif y in pnum_features:
                 self.figure.boxenplot_and_piechart( 

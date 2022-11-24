@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1117</width>
-    <height>783</height>
+    <width>1138</width>
+    <height>764</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -33,7 +33,7 @@
           <x>0</x>
           <y>0</y>
           <width>498</width>
-          <height>761</height>
+          <height>742</height>
          </rect>
         </property>
         <layout class="QGridLayout" name="gridLayout"/>
@@ -129,6 +129,20 @@
          </item>
          <item>
           <widget class="QComboBox" name="targettransform_combobox"/>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayout_2">
+         <item>
+          <widget class="QLabel" name="label_2">
+           <property name="text">
+            <string>Encoding Map</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLineEdit" name="encode_lineedit"/>
          </item>
         </layout>
        </item>
