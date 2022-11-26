@@ -38,27 +38,92 @@ class ModelGUI(mw_Base, mw_Ui):
 
         # Signals and Slots
         self.applypipeline_button.clicked.connect(self.apply_pipeline)
-        self.fitmodel_button.clicked.connect(self.fit_model)
+        self.fitsinglemodel_button.clicked.connect(self.fit_singlemodel)
         self.scoring_combobox.currentTextChanged.connect(self.set_model_scoring)
-        self.bagging_checkbox.stateChanged.connect(self.toggle_bagging)
-        self.boosting_checkbox.stateChanged.connect(self.toggle_boosting)
         self.learningcurve_button.clicked.connect(self.plot_learning_curve)
-        self.model_combobox.currentTextChanged.connect(self.update_hyperparam_inputs)
+        self.singlemodels_combobox.currentTextChanged.connect(self.update_hyperparam_widgets)
+        self.multimodels_combobox.currentTextChanged.connect(self.update_hyperparam_widgets)
         self.submission_button.clicked.connect(self.create_submission)
         self.validation_button.clicked.connect(self.plot_validation_curve)
+        self.savemodel_button.clicked.connect(self.save_model)
+        self.modelname_lineedit.returnPressed.connect(self.save_model)
+        self.dropmodel_button.clicked.connect(self.drop_selected_models)
+        self.cvfold_spinbox.valueChanged.connect(self.set_model_cv)
+        self.loadmodel_button.clicked.connect(self.load_model)
+        self.displaymodel_button.clicked.connect(self.display_model_parameters)
+        self.fitmultimodel_button.clicked.connect(self.fit_multimodel)
 
 
-    def get_current_model_object(self):
-        model_string = self.model_combobox.currentText()
-        bagging = self.bagging_checkbox.isChecked()
-        boosting = self.boosting_checkbox.isChecked()
-        model_object, _ = self.model_analysis.get_model_object(model_string, bagging, boosting)
-        return model_object
+    def set_model_cv(self):
+        self.model_analysis.cv = self.cvfold_spinbox.value()
+        return
+    
+    def set_model_scoring(self):
+        self.model_analysis.scoring = self.scoring_combobox.currentText()
+        return
+
+    def drop_selected_models(self):
+        self.model_analysis.drop_selected_models()
+        self.update_saved_models()
+
+    def load_model(self):
+        try:
+            self.model_analysis.load_model()
+        except Exception as e:
+            qtw.QMessageBox.critical(self, 'Error in Loading Model', f'Following error raised: {e}')
+            return
+
+    def display_model_parameters(self):
+        try:
+            title, text = self.model_analysis.display_model_parameters()
+        except Exception as e:
+            qtw.QMessageBox.critical(self, 'Error in Displaying Model Parameters', f'Following error raised: {e}')
+            return
+
+        qtw.QMessageBox.information(self, title, text)
+
+    def save_model(self):
+        if self.model_analysis.get_current_model_object() is None:
+            qtw.QMessageBox.critical(self, 'No Fit Model', 'You must fit a model first')
+            return
+
+        model_name = self.modelname_lineedit.text()
+        if model_name=='':
+            qtw.QMessageBox.critical(self, 'No Model Label', 'Type a model label.')
+            return
+
+        self.model_analysis.save_model(model_name)
+        self.update_saved_models()
+        self.modelname_lineedit.setText('')
+
+
+    def update_saved_models(self):
+        # Define and clear grid
+        grid = self.savedmodel_grid
+        for i in reversed(range(grid.count())): 
+            grid.itemAt(i).widget().setParent(None)
+        
+        titles = ['Model','Score']
+        irow = 0
+        for icol, title in enumerate(titles):
+            grid.addWidget(qtw.QLabel(title, self), irow, icol)
+
+        for model_label, row in self.model_analysis.saved_models.iterrows():
+            box = qtw.QCheckBox(model_label, self)
+            self.model_analysis.saved_models.loc[model_label, 'checkbox'] = box
+            label = qtw.QLabel(f'{row.model_object.mean_score:.3f}', self)
+            
+            irow += 1
+            grid.addWidget(box, irow, 0)
+            grid.addWidget(label, irow, 1)
 
     def create_submission(self):
-        y_pred = self.transform_target( 
-            self.get_current_model_object.test_predictions, invert=True
-        )
+        model_object = self.model_analysis.get_current_model_object()
+        if model_object is None:
+            qtw.QMessageBox.critical(self, 'Fit Model', 'No model has been fit')
+            return
+
+        y_pred = self.transform_target(model_object.test_predictions, invert=True)
         predictions = pd.DataFrame({
             self.main_gui.id_feature:self.main_gui.id_test, 
             self.main_gui.target_feature:y_pred
@@ -67,73 +132,78 @@ class ModelGUI(mw_Base, mw_Ui):
         predictions.to_csv(submission_path, index=False)
         return
 
-    def get_model_options_dict(self):
-        model_options_dict = { 
-            'model_string':self.model_combobox.currentText(),
-            'bagging':self.bagging_checkbox.isChecked(),
-            'boosting':self.boosting_checkbox.isChecked(),
-            'cv':self.cvfold_spinbox.value()
-        }
-        return model_options_dict
 
-
-    def fit_model(self):
+    def fit_multimodel(self):
+        # Apply pipeline
         if self.apply_pipeline():
             return
 
-        self.results_label.setText('')
-        param_grid = self.get_param_grid()
-        model_options = self.get_model_options_dict()
-        scores = self.model_analysis.gridsearch(**model_options, param_grid=param_grid)
+        self.multimodelresults_label.setText('')
 
-        # Print results
-        self.results_label.setText(f'{model_options["model_string"]}: {scores.mean():.3f} ({scores.std():.3f})')
-        optimized_params = self.get_current_model_object().current_estimator.get_params()
-        self.optparam_label.setText(', '.join([f'{key}={optimized_params[key]}' for key in param_grid.keys()]))
+        # Create new model object
+        model_string = self.multimodels_combobox.currentText()
+        self.model_analysis.create_model_object(model_string)
 
-        # Can not due when target is category dtype
-        train_predictions = self.get_current_model_object().train_predictions
+        param_grid = self.get_param_grid(self.multimodel_paramgrid_layout)
+        self.model_analysis.gridsearch(param_grid=param_grid)
+
+        # Print Results
+        model_object = self.model_analysis.get_current_model_object()
+        self.multimodelresults_label.setText(
+            f'{model_string}: {model_object.mean_score:.3f} ({model_object.scores.std():.3f})'
+        )
+        optimized_params = model_object.estimator.get_params()
+        self.multimodelparams_label.setText(', '.join([f'{key}={optimized_params[key]}' for key in param_grid.keys()]))
+
+        # Compute residue when target type is numeric
+        train_predictions = model_object.train_predictions
+        if isinstance(train_predictions[0], numbers.Number):
+            residues = train_predictions - self.transform_target(self.y)
+            self.main_gui.featengr.add_residues(residues)
+
+
+    def fit_singlemodel(self):
+        # Apply pipeline
+        if self.apply_pipeline():
+            return
+
+        self.singlemodelresults_label.setText('')
+
+        # Create new model object
+        model_string = self.singlemodels_combobox.currentText()
+        self.model_analysis.create_model_object(model_string)
+
+        # Run GridSearch 
+        param_grid = self.get_param_grid(self.singlemodel_paramgrid_layout)
+        self.model_analysis.gridsearch(param_grid=param_grid)
+
+        # Print Results
+        model_object = self.model_analysis.get_current_model_object()
+        self.singlemodelresults_label.setText(
+            f'{model_string}: {model_object.mean_score:.3f} ({model_object.scores.std():.3f})'
+        )
+        optimized_params = model_object.estimator.get_params()
+        self.singlemodelparams_label.setText(', '.join([f'{key}={optimized_params[key]}' for key in param_grid.keys()]))
+
+        # Compute residue when target type is numeric
+        train_predictions = model_object.train_predictions
         if isinstance(train_predictions[0], numbers.Number):
             residues = train_predictions - self.transform_target(self.y)
             self.main_gui.featengr.add_residues(residues)
 
 
     def plot_learning_curve(self):
-        model_options = self.get_model_options_dict()
-
         self.figure.reset_figure(ncols=1)
-        self.model_analysis.learning_curve(samples=10, **model_options, ax=self.figure.ax)
+        self.model_analysis.learning_curve(samples=10, ax=self.figure.ax)
         self.figure.canvas.draw()
         return
 
     def plot_validation_curve(self):
-        model_options = self.get_model_options_dict()
-        param_grid = self.get_param_grid()
-        if not param_grid:
-            qtw.QMessageBox.critical(self, 'No Parameter Selected', 'Select a hyperparameter to plot against.')
-            return
-        
-        param_name, param_range = list(param_grid.items())[0]
-
         self.figure.reset_figure(ncols=1)
-        self.model_analysis.validation_curve(param_name, param_range, **model_options, ax=self.figure.ax)
+        self.model_analysis.validation_curve(ax=self.figure.ax)
         self.figure.canvas.draw()
         return
 
-
-    def toggle_bagging(self):
-        if self.bagging_checkbox.isChecked() and self.boosting_checkbox.isChecked():
-            self.boosting_checkbox.setChecked(False)
-        self.update_hyperparam_inputs()
-
-    def toggle_boosting(self):
-        if self.bagging_checkbox.isChecked() and self.boosting_checkbox.isChecked():
-            self.bagging_checkbox.setChecked(False)
-        self.update_hyperparam_inputs()
-
-    def set_model_scoring(self):
-        self.model_analysis.scoring = self.scoring_combobox.currentText()
-        return
 
     def initialize_model(self):
         scoring_options_dict = { 
@@ -146,15 +216,19 @@ class ModelGUI(mw_Base, mw_Ui):
 
         self.model_analysis = ModelAnalysis(self.main_gui)
         self.scoring_combobox.addItems(scoring_options_dict[self.main_gui.model_type])
-        self.model_combobox.addItems(self.model_analysis.defined_models.keys())
-        self.model_analysis.scoring = self.set_model_scoring()
-        self.update_hyperparam_inputs()
+        self.singlemodels_combobox.addItems(self.model_analysis.estimator_dict.keys())
+        self.multimodels_combobox.addItems(['bagging','boosting','stacking','voting'])
+        self.set_model_scoring()
+        self.set_model_cv()
+        self.apply_pipeline()
+        self.update_hyperparam_widgets()
+        self.update_saved_models()
 
-    def get_param_grid(self):
+    def get_param_grid(self, layout):
         param_grid = {}
-        for row in range(self.paramgrid_layout.rowCount()):
-            checkbox = self.paramgrid_layout.itemAt(row, 0).widget()
-            lineedit = self.paramgrid_layout.itemAt(row, 1).widget()
+        for row in range(layout.rowCount()):
+            checkbox = layout.itemAt(row, 0).widget()
+            lineedit = layout.itemAt(row, 1).widget()
             if checkbox.isChecked():
                 try:
                     exec(f'param_grid["{checkbox.text()}"] = {lineedit.text()}')
@@ -162,18 +236,36 @@ class ModelGUI(mw_Base, mw_Ui):
                     qtw.QMessageBox.critical(self, 'Parameter Grid Error', f'Error raised: {e}')
         return param_grid
 
-    def update_hyperparam_inputs(self):
-        param_grid = self.get_current_model_object().param_grid
+    def update_hyperparam_widgets(self):
+        ## Single Model Hyperparams
+        model_string = self.singlemodels_combobox.currentText()
+        param_grid = self.model_analysis.param_grid_dict[model_string]
 
         # Clear paramgrid QFormLayout
-        for row in reversed(range(self.paramgrid_layout.rowCount())):
-            self.paramgrid_layout.removeRow(row)
+        for row in reversed(range(self.singlemodel_paramgrid_layout.rowCount())):
+            self.singlemodel_paramgrid_layout.removeRow(row)
 
         # Populate paramgrid QFromLayout
         for param, paramrange in param_grid.items():
-            self.paramgrid_layout.addRow( 
+            self.singlemodel_paramgrid_layout.addRow( 
                 qtw.QCheckBox(param, self), qtw.QLineEdit(str(paramrange), self)
             )
+
+        ## Multi Model Hyperparams
+        model_string = self.multimodels_combobox.currentText()
+        param_grid = self.model_analysis.param_grid_dict[model_string]
+
+        # Clear paramgrid QFormLayout
+        for row in reversed(range(self.multimodel_paramgrid_layout.rowCount())):
+            self.multimodel_paramgrid_layout.removeRow(row)
+
+        # Populate paramgrid QFromLayout
+        for param, paramrange in param_grid.items():
+            self.multimodel_paramgrid_layout.addRow( 
+                qtw.QCheckBox(param, self), qtw.QLineEdit(str(paramrange), self)
+            )
+
+        
 
     def apply_pipeline(self):
         # Save pipe settings, check for new features, and update pipeline widgets
@@ -261,7 +353,6 @@ class ModelGUI(mw_Base, mw_Ui):
         grid = self.pipeline.layout()
         for i in reversed(range(grid.count())): 
             grid.itemAt(i).widget().setParent(None)
-
         
         # Get discrete features for bycategory menu
         discrete_features_plus_none = self.main_gui.featengr.get_discrete_features()
