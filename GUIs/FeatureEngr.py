@@ -82,8 +82,8 @@ class FeatureEngr():
                 try:
                     self.get_encoding_dict(map_str, feature)
                 except Exception as e:
-                    self.main_gui.data_gui.raise_error('Invalid Map String', f'{e}')
-                    return 1
+                    raise ValueError(str(e))
+
             if encodeby in ['mean', 'median']:
                 grouped = self.data.groupby(by=feature)[self.main_gui.target_feature].agg(encodeby)
                 encode_map = {}
@@ -95,8 +95,7 @@ class FeatureEngr():
             try:
                 self.data['enc'+feature] = self.data[feature].map(encode_map).astype('float')
             except Exception as e:
-                self.main_gui.data_gui.raise_error('Encoding Error', f'{e}')
-                return 1
+                raise ValueError(str(e))
 
             self.save_featengr_code( 
                 feature, 
@@ -110,8 +109,8 @@ class FeatureEngr():
             try:
                 exec(code)
             except Exception as e:
-                self.main_gui.data_gui.raise_error('Code Error', f'{e}')
-                return 1
+                raise ValueError(str(e))
+
             self.save_featengr_code(None, code)
 
             # Make parsings feature type a function?

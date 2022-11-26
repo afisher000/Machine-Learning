@@ -45,7 +45,7 @@ class DataGUI(mw_Base, mw_Ui):
         self.text_textedit.setFocus()
 
     def initialize_fixed_menus(self):
-        # Setup aggfcn_combobox
+        # Setup fixed combobox menus
         agg_fcn_options = {'none':None, 'max':np.max, 'min':np.min, 'mean':np.mean, 'median':np.median, 'sum':np.sum}
         for label, fcn in agg_fcn_options.items():
             self.aggfcn_combobox.addItem(label, fcn)
@@ -55,10 +55,12 @@ class DataGUI(mw_Base, mw_Ui):
         return
 
     def clip_transform_feature(self):
-        feature = self.clip_combobox.currentText()
-        if feature == 'none':
+        # Read feature
+        feature = self.parse_combobox_text(self.clip_combobox)
+        if feature is None:
             return
 
+        # Read min,max inputs
         try:
             minval = float(self.minval_lineedit.text())
             maxval = float(self.maxval_lineedit.text())
@@ -66,75 +68,113 @@ class DataGUI(mw_Base, mw_Ui):
             qtw.QMessageBox.critical(self, 'Invalid minval or maxval', 'Both inputs must be entered and numerical values')
             return
 
+        # Create new feature
         self.main_gui.featengr.new_feature('clip', feature=feature, clip_range = [minval, maxval])
+
+        # Reset gui inputs
         self.minval_lineedit.setText('')
         self.maxval_lineedit.setText('')
         self.clip_combobox.setCurrentText('none')
         self.update_menus()
 
     def log_transform_feature(self):
-        feature = self.log_combobox.currentText()
-        if feature == 'none':
+        # Read feature
+        feature = self.parse_combobox_text(self.log_combobox)
+        if feature is None:
             return
+
+        # Create new feature
         self.main_gui.featengr.new_feature('log1p', feature=feature)
+
+        # Reset gui inputs
         self.log_combobox.setCurrentText('none')
         self.update_menus()
 
     def bin_transform_feature(self):
-        feature = self.bin_combobox.currentText()
-        if feature == 'none':
+        # Read feature
+        feature = self.parse_combobox_text(self.bin_combobox)
+        if feature is None:
             return
+
+        # Create new feature
         self.main_gui.featengr.new_feature('bin', feature=feature)
+
+        # Reset gui inputs
         self.bin_combobox.setCurrentText('none')
         self.update_menus()
 
     def drop_feature(self):
+        # Read feature
         feature = self.parse_combobox_text(self.drop_combobox)
         if feature is None:
             return
+
+        # Create new feature
         self.main_gui.featengr.new_feature('drop', feature=feature)
+
+        # Reset gui inputs
         self.drop_combobox.setCurrentText('none')
         self.update_menus()
 
     def dummies_transform_feature(self):
-        feature = self.dummies_combobox.currentText()
-        if feature == 'none':
+        # Read feature
+        feature = self.parse_combobox_text(self.dummies_combobox)
+        if feature is None:
             return 
+
+        # Create new feature
         self.main_gui.featengr.new_feature('dummies', feature=feature)
+
+        # Reset gui inputs
         self.dummies_combobox.setCurrentText('none')
         self.update_menus()
 
     def undrop_feature(self):
-        feature = self.undrop_combobox.currentText()
-        if feature == '':
+        # Read feature
+        feature = self.parse_combobox_text(self.undrop_feature)
+        if feature is None:
             return
+
+        # Create new feature
         self.main_gui.featengr.new_feature('undrop', feature=feature)
+
+        # Reset gui inputs
         self.update_menus()
 
     def create_feature_from_code(self):
+        # Read code
         code = self.create_lineedit.text()
-        if not self.main_gui.featengr.new_feature('code', code=code):
-            self.create_lineedit.setText('')
-            self.update_menus()
+
+        # Create new feature
+        try:
+            self.main_gui.featengr.new_feature('code', code=code)
+        except Exception as e:
+            qtw.QMessageBox.critical(self, 'Code Error', f'Code raised following error: {e}')
+            return
+
+        # Reset gui inputs
+        self.create_lineedit.setText('')
+        self.update_menus()
 
     def encode_transform_feature(self):
-        encodeby = self.encodeby_combobox.currentText()
-        feature = self.encode_combobox.currentText()
+        # Read encoding inputs
+        encodeby = self.parse_combobox_text(self.encodeby_combobox)
+        feature = self.parse_combobox_text(self.encode_combobox)
         map_str = self.encode_lineedit.text()
-        if feature == 'none':
+        if feature is None:
             return
             
+        # Create new feature
+        try:
+            self.main_gui.featengr.new_feature('encode', feature=feature, map_str=map_str, encodeby=encodeby)
+        except Exception as e:
+            qtw.QMessageBox.critical(self, 'Encoding Error', f'Encoding raised following error: {e}')
 
-
-        if not self.main_gui.featengr.new_feature('encode', feature=feature, map_str=map_str, encodeby=encodeby):
-            self.encode_combobox.setCurrentText('none')
-            self.encode_lineedit.setText('')
-            self.encodeby_combobox.setCurrentText('map')
-            self.update_menus()
-
-    def raise_error(self, title, text):
-        qtw.QMessageBox.critical(self, title, text)
-        return
+        # Reset gui inputs
+        self.encode_combobox.setCurrentText('none')
+        self.encode_lineedit.setText('')
+        self.encodeby_combobox.setCurrentText('map')
+        self.update_menus()
 
     def update_menus(self):
         dropped_features = self.main_gui.featengr.get_features_by_isdropped(True)
@@ -179,12 +219,15 @@ class DataGUI(mw_Base, mw_Ui):
 
     def save_notes(self):
         ''' Write comments and figure to notes powerpoint'''
+        # Read inputs
         title = self.title_lineedit.text()
         text = self.text_textedit.toPlainText()
         canvas = self.figure.canvas
+
+        # Write to notes
         self.main_gui.notes.save_notes(title, text, canvas)
         
-        # Reset GUI inputs
+        # Reset gui inputs
         self.title_lineedit.setText('')
         self.text_textedit.setText('')
         
@@ -269,17 +312,20 @@ class DataGUI(mw_Base, mw_Ui):
                 )
         
     def custom_plot(self):
-        plot_type = self.customplot_combobox.currentText()
-        if plot_type=='none':
-            return
-        
+        # Read inputs
+        plot_type = self.parse_combobox_text(self.customplot_combobox)
         corrtarget = self.corrtarget_combobox.currentText()
+        n_features = self.customplot_spinbox.value()
+        if plot_type is None:
+            return
+
         if plot_type=='correlation' and corrtarget=='none':
             qtw.QMessageBox.warning(
                 self, 'Select Correlation Target', 'You must select a correlation target.'
             )
             return
-        n_features = self.customplot_spinbox.value()
+
+        # Read data and call custom_plot method of figure
         data = self.main_gui.featengr.data
         undropped_features = self.main_gui.featengr.get_features_by_isdropped(False)
         self.figure.custom_plot(data[undropped_features], plot_type, corrtarget, n_features)

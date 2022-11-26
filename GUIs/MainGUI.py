@@ -26,12 +26,14 @@ from matplotlib import rcParams
 rcParams.update({'figure.autolayout': True}) # to automatically fit long axis ticklabels
 
 # To IMPLEMENT
-# Don't write feature engineering with target feature to txt file.
 # Add time of run and circle to death to see that it is running
-# How to implement bagging with different hyperparaters models?
 # Put error if trying to use dummies on categories with too many entries
-# Add "current_model" to model_analysis classes
-# Soft voting by saving predictions to a dataframe, when fitting on the data frame...
+# Validation doesn't change with selected paramgrid now...
+# Sort saved models by score
+# Add default clip values when only one is specified (min or max are default)
+# Replace 'none' with '' in menus
+
+
 
 mw_Ui, mw_Base = uic.loadUiType('master_window.ui')
 class MainGUI(mw_Base, mw_Ui):
@@ -79,25 +81,27 @@ class MainGUI(mw_Base, mw_Ui):
         self.featengr.load_files()
         self.pipe.load_files()
 
+        # Update gui with filepath
         self.directory_label.setText(os.path.relpath(directory))
 
         
     def show_data_gui(self):
+        # Show data GUI
         if self.directory_label.text()=='':
             qtw.QMessageBox.critical(self, 'Choose Directory', 'Directory must include "test.csv" and "train.csv" files.')
             return
         self.data_gui = DataGUI(self)
         
     def show_model_gui(self):
+        # Show model GUI
         if self.directory_label.text()=='':
             qtw.QMessageBox.critical(self, 'Choose Directory', 'Directory must include "test.csv" and "train.csv" files.')
             return
         self.model_gui = ModelGUI(self)
 
-    
-
 if __name__ =='__main__':
     app = qtw.QApplication(sys.argv)
     gui = MainGUI()
     app.exec()
+
 # %%
