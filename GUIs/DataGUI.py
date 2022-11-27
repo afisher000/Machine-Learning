@@ -16,12 +16,14 @@ mw_Ui, mw_Base = uic.loadUiType('data_analysis_gui.ui')
 class DataGUI(mw_Base, mw_Ui):
     def __init__(self, main_gui, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.setupUi(self)
         self.show()
         
-        # Import Layout
-        self.setupUi(self)
+        # Attributes
         self.main_gui = main_gui
         self.figure = GUI_Figure(self, self.plot_layout)
+
+        # Setup
         self.update_menus()
         self.initialize_fixed_menus()
 
@@ -182,40 +184,31 @@ class DataGUI(mw_Base, mw_Ui):
         self.update_menus()
 
     def update_menus(self):
-        dropped_features = self.main_gui.featengr.get_features_by_isdropped(True)
-        undropped_features = self.main_gui.featengr.get_features_by_isdropped(False, prefix=True)
+        # Readin feature lists
+        dropped_features = self.main_gui.featengr.get_features_by_isdropped(True, insert_none=True)
+        undropped_features = self.main_gui.featengr.get_features_by_isdropped(False, prefix=True, insert_none=True)
+        num_pnum_features = self.main_gui.featengr.get_features_by_type(['num','pnum'], insert_none=True)
+        num_features = self.main_gui.featengr.get_features_by_type('num', insert_none=True)
+        cat_features = self.main_gui.featengr.get_features_by_type('cat', insert_none=True)
 
-        # undropped_features_plus_none = undropped_features
-        # undropped_features_plus_none.insert(0, 'none')
-
-        undropped_features_plus_none = self.main_gui.featengr.get_features_by_isdropped(False, prefix=True, insert_none=True)
-        num_pnum_features_plus_none = self.main_gui.featengr.get_features_by_type(['num','pnum'])
-        num_pnum_features_plus_none.insert(0, 'none')
-
-        num_features_plus_none = self.main_gui.featengr.get_features_by_type('num')
-        num_features_plus_none.insert(0, 'none')
-
-        cat_features_plus_none = self.main_gui.featengr.get_features_by_type('cat')
-        cat_features_plus_none.insert(0, 'none')
-
-        # Specify options for each combobox
+        # Specify feature options for each combomenu
         options_dict = { 
-            'x':undropped_features_plus_none,
-            'y':undropped_features_plus_none,
-            'hue':undropped_features_plus_none,
-            'size':undropped_features_plus_none,
-            'style':undropped_features_plus_none,
-            'log':num_pnum_features_plus_none,
-            'bin':num_pnum_features_plus_none,
-            'dummies':cat_features_plus_none,
-            'clip':num_pnum_features_plus_none,
-            'encode':cat_features_plus_none,
-            'drop':undropped_features_plus_none,
+            'x':undropped_features,
+            'y':undropped_features,
+            'hue':undropped_features,
+            'size':undropped_features,
+            'style':undropped_features,
+            'log':num_pnum_features,
+            'bin':num_pnum_features,
+            'dummies':cat_features,
+            'clip':num_pnum_features,
+            'encode':cat_features,
+            'drop':undropped_features,
             'undrop':dropped_features,
-            'corrtarget':num_pnum_features_plus_none
+            'corrtarget':num_pnum_features
         }
 
-        # Update combobox items
+        # Update combobox menus
         for menu, options in options_dict.items():
             combobox = getattr(self, menu+'_combobox')
             current_text = combobox.currentText()
@@ -238,9 +231,12 @@ class DataGUI(mw_Base, mw_Ui):
         self.text_textedit.setText('')
         
     def parse_combobox_text(self, comboboxes):
+        # Check if list
         is_not_list = not isinstance(comboboxes, list)
         if is_not_list:
             comboboxes = [comboboxes]
+
+        # Build output 
         output = []
         for combobox in comboboxes:
             text = combobox.currentText()
@@ -251,17 +247,20 @@ class DataGUI(mw_Base, mw_Ui):
             else:
                 prefix, feature = text.split(' ')
                 output.append(feature)
-                
+        
+        # Return output
         if is_not_list:
             output = output[0]
         return output
         
     def update_figure(self):
+        # Read gui inputs
         x, y, hue, size, style = self.parse_combobox_text( 
             [self.x_combobox, self.y_combobox, self.hue_combobox, self.size_combobox, self.style_combobox]
         )
         agg_fcn = self.aggfcn_combobox.currentData()
         
+        # Fetch features
         data = self.main_gui.featengr.data
         num_features = self.main_gui.featengr.get_features_by_type('num')
         pnum_features = self.main_gui.featengr.get_features_by_type('pnum')
@@ -273,6 +272,7 @@ class DataGUI(mw_Base, mw_Ui):
             self.figure.draw()
             return 
         
+        # Specify plot for xy pairing. Catch raised errors with try/except
         try:
             if y is None:
                 if x in num_features:
@@ -324,7 +324,7 @@ class DataGUI(mw_Base, mw_Ui):
             return
 
     def custom_plot(self):
-        # Read inputs
+        # Read gui inputs
         plot_type = self.parse_combobox_text(self.customplot_combobox)
         corrtarget = self.corrtarget_combobox.currentText()
         n_features = self.customplot_spinbox.value()

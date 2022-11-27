@@ -29,16 +29,16 @@ rcParams.update({'figure.autolayout': True}) # to automatically fit long axis ti
 # Add time of run and circle to death to see that it is running
 # Add default clip values when only one is specified (min or max are default)
 # Replace 'none' with '' in menus
-# Only allow one gui window of each type at a time
+# Simplify update_hyperparam_widgets, have input that specifies single/multimode
 
 mw_Ui, mw_Base = uic.loadUiType('master_window.ui')
 class MainGUI(mw_Base, mw_Ui):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.setupUi(self)
         self.show()
 
-        # Import Layout
-        self.setupUi(self)
+        # Attributes
         self.featengr = FeatureEngr(self)
         self.notes = Notes(self)
         self.pipe = Pipe(self)

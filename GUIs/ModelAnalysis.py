@@ -19,6 +19,7 @@ import os
 
 class BaseModel():
     def __init__(self, model_string, base_estimator, default_param_grid):
+        # Attributes
         self.label = model_string
         self.estimator = base_estimator
         self.default_param_grid = default_param_grid
@@ -30,15 +31,20 @@ class BaseModel():
 
 class ModelAnalysis():
     def __init__(self, main_gui):
+        # Attributes
         self.main_gui = main_gui
         self.model_type = main_gui.model_type #classifier or regressor
         self.current_model_object = None
+        
+        # Must be initialized from gui
         self.cv = None
+        self.scoring = None
 
+        # Must be initialized after pipeline from gui
         self.X = None
         self.X_test = None
         self.y = None
-        self.scoring = None
+        
 
         self.models_folder = 'SavedModels'
         self.saved_models = self.load_saved_models()
@@ -192,10 +198,12 @@ class ModelAnalysis():
         ''' Uses best model of class specified by model string to create learning curve.'''
         model_object = self.current_model_object
 
+        # Simulate learning curve
         train_sizes, train_scores, valid_scores = learning_curve( 
             model_object.estimator, self.X, self.y, train_sizes = np.linspace(.1, 1, samples), cv=self.cv, n_jobs=-1, scoring=self.scoring
         )
 
+        # Plot figure
         if ax is None:
             fig, ax = plt.subplots()
         ax.plot(train_sizes, train_scores.mean(axis=1), label='Training')
@@ -212,12 +220,15 @@ class ModelAnalysis():
         if model_object.param_grid is None:
             raise ValueError('No hyperparameters used in current model')
 
+        # Get first item in object param_grid
         param_name, param_range = list(model_object.param_grid.items())[0]
 
+        # Simulate hyperpameter validation curve
         train_scores, valid_scores = validation_curve( 
             model_object.estimator, self.X, self.y, param_name=param_name, param_range=param_range, cv=self.cv, n_jobs=-1, scoring=self.scoring
         )
 
+        # Plot figure
         if ax is None:
             fig, ax = plt.subplots()
         ax.plot(param_range, train_scores.mean(axis=1), label='Training')
@@ -234,9 +245,11 @@ class ModelAnalysis():
         saved_models = pd.DataFrame(columns=['model_name','model_object','checkbox'])
         dirpath = os.path.join(self.main_gui.directory, self.models_folder)
 
+        # Create directory if does not exist
         if not os.path.exists(dirpath):
             os.mkdir(dirpath)
 
+        # Build saved_models from pkl files
         files = os.listdir(dirpath)
         for file in files:
             if file.endswith('.pkl'):
@@ -245,27 +258,33 @@ class ModelAnalysis():
         return saved_models
 
     def save_model(self, model_name):
+        # Fit current object to train data
         model_object = self.current_model_object
         model_object.estimator.fit(self.X, self.y)
 
+        # Add to saved_models and save to pkl file
         self.saved_models.loc[model_name] = [model_name, model_object, None]
         path = os.path.join(self.main_gui.directory, self.models_folder, model_name + '.pkl')
         pickle.dump([model_name, model_object], open(path, 'wb'))
 
     def load_model(self):
+        # Confirm one model selected
         selected_models = self.saved_models.checkbox.apply(lambda x: x.isChecked())
         if sum(selected_models)!=1:
             raise ValueError('Exactly one saved model must be selected')
 
+        # Set to current model object
         model_name = self.saved_models.index[selected_models][0]
         self.current_model_object = self.saved_models.loc[model_name, 'model_object']
         return
         
     def display_model_parameters(self):
+        # Confirm one model selected
         selected_models = self.saved_models.checkbox.apply(lambda x: x.isChecked())
         if sum(selected_models)!=1:
             raise ValueError('Exactly one saved model must be selected')
 
+        # Munch object parameters for display
         model_name = self.saved_models.index[selected_models][0]
         parameters = self.saved_models.loc[model_name, 'model_object'].estimator.get_params()
         title = self.saved_models.loc[model_name, 'model_name']
@@ -274,8 +293,11 @@ class ModelAnalysis():
 
 
     def drop_selected_models(self):
+        # Get selected models
         selected_models = self.saved_models.checkbox.apply(lambda x: x.isChecked())
         drop_models = self.saved_models.model_name[selected_models]
+
+        # Remove from saved_models and delete pkl file
         for model_name in drop_models:
             self.saved_models = self.saved_models.drop(model_name)
             path = os.path.join(self.main_gui.directory, self.models_folder, model_name + '.pkl')

@@ -4,6 +4,7 @@ import os
 
 class Pipe():
     def __init__(self, main_gui):
+        # Attributes
         self.main_gui = main_gui
         self.settings_file = 'pipe_settings.csv'
         self.widget_ptrs = None
@@ -16,10 +17,8 @@ class Pipe():
             self.settings['impute_by'] = self.settings['impute_by'].astype('str')
         else:
             self.settings = pd.DataFrame(columns=['is_selected','scale_strat','impute_strat', 'impute_by'])
-            
-            
         
-        # Update with new feature engineered features
+        # Update with new features from feature engineering
         features = self.main_gui.featengr.data.select_dtypes('number').columns
         for feature in features:
             if feature not in self.settings.index:
@@ -28,12 +27,12 @@ class Pipe():
         self.settings = self.settings.sort_index()
         self.settings.to_csv(path, index=True)
         
-        
         # Create widget pointer dataframe
         self.widget_ptrs = pd.DataFrame(index=features, columns=['checkbox','scaling_menu','imputing_menu','imputeby_menu','fillna_input'])
         return
     
     def update_widgets(self):
+        # Update widgets with information in widget_ptr dataframe
         for feature, row in self.widget_ptrs.iterrows():
             is_selected, scale_strat, impute_strat, impute_by = self.settings.loc[feature]
             
@@ -50,6 +49,7 @@ class Pipe():
         return self.settings.index[self.settings.is_selected]
     
     def save_settings(self):
+        # Update widget_ptr and settings dataframe from widgets
         for feature, row in self.widget_ptrs.iterrows():
             is_selected = row.checkbox.isChecked()
             scale_strat = row.scaling_menu.currentText()
@@ -62,10 +62,12 @@ class Pipe():
                 impute_by = 'none'
             self.settings.loc[feature] = [is_selected, scale_strat, impute_strat, impute_by]
         
+        # Save to file
         path = os.path.join(self.main_gui.directory, self.settings_file)
         self.settings.to_csv(path)
 
     def get_scaling_dict(self):
+        # Build dictionary for scaling implementation
         data = {}
         strategies = self.settings[self.settings.is_selected].scale_strat
         for feature, strat in strategies.items():
@@ -85,7 +87,7 @@ class Pipe():
             if strat == 'none':
                 continue
             
-            # Entry in dictinoary depends on strategy
+            # Entry in dictionary depends on strategy
             if strat in ['bycategory', 'byvalue']:
                 by_value = self.settings.impute_by[feature]
                 entry = (feature, by_value)

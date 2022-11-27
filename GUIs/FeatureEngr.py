@@ -4,15 +4,14 @@ import os
 
 class FeatureEngr():
     def __init__(self, main_gui):
+        # Attributes
         self.main_gui = main_gui
         self.data_file = 'feature_engineering.csv'
         self.featengr_file = 'feature_engineering_code.txt'
         self.settings_file = 'feature_engineering_settings.csv'
         
-    def get_encoding_dict(self, map_str, feature=None):
-        if feature is None:
-            feature = self.main_gui.target_feature
-
+    def get_encoding_dict(self, map_str, feature):
+        # Create encoding dictionary from map_str
         encode_map = {}
         for entry in map_str.split(','):
             key, value = entry.split('=')
@@ -23,6 +22,8 @@ class FeatureEngr():
 
 
     def new_feature(self, transform, feature=None, map_str=None, encodeby=None, code=None, clip_range=None):
+        # Create new features for different transforms
+        # Logarithm
         if transform=='log1p':
             self.data['log'+feature] = np.log1p(self.data[feature])
             self.settings.loc['log'+feature] = ['log'+feature, False, 'num']
@@ -31,6 +32,7 @@ class FeatureEngr():
                 f'df["log{feature}"]=np.log1p(df["{feature}"])'
             )
 
+        # Binning
         elif transform == 'bin':
             self.data['bin'+feature] = pd.qcut(self.data[feature], 10)
             self.settings.loc['bin'+feature] = ['bin'+feature, False, 'cat']
@@ -39,7 +41,9 @@ class FeatureEngr():
                 f'df["bin{feature}"]=pd.qcut(df["{feature}"], 10)'
             )
 
+        # Dummies
         elif transform == 'dummies':
+            # Remove 'Null' dummy
             if self.data[feature].nunique()>11:
                 raise ValueError(f'Too many categories for {feature} to create dummies.')
                 
@@ -62,6 +66,7 @@ class FeatureEngr():
                 if cat!='Null':
                     self.settings.loc[f'{feature}_{cat}'] = [f'{feature}_{cat}', False, 'pnum']
 
+        # Clipping
         elif transform == 'clip':
             minval, maxval = clip_range
             self.data['clip'+feature] = self.data[feature].clip(lower=minval, upper=maxval)
@@ -73,20 +78,24 @@ class FeatureEngr():
                 f'df["clip{feature}"]=df["{feature}"].clip(lower={minval}, upper={maxval})'
             )
 
+        # Drop faeture
         elif transform == 'drop':
             self.settings.loc[feature, 'isdropped'] = True
 
+        # Undrop feature
         elif transform == 'undrop':
             self.settings.loc[feature, 'isdropped'] = False
 
+        # Encode
         elif transform == 'encode':
-            # Build encoding map
+            # Encode by map
             if encodeby=='map':
                 try:
                     self.get_encoding_dict(map_str, feature)
                 except Exception as e:
                     raise ValueError(str(e))
 
+            # Encode by agg_function
             if encodeby in ['mean', 'median']:
                 grouped = self.data.groupby(by=feature)[self.main_gui.target_feature].agg(encodeby)
                 encode_map = {}
@@ -104,9 +113,9 @@ class FeatureEngr():
             )
             self.settings.loc['enc'+feature] = ['enc'+feature, False, 'pnum']
 
+        # Code transform
         elif transform == 'code':
-            df = self.data
-            old_features = df.columns
+            old_features = self.data.columns
             try:
                 exec(code)
             except Exception as e:
@@ -114,19 +123,22 @@ class FeatureEngr():
 
             self.save_featengr_code(None, code)
 
-            # Make parsings feature type a function?
-            for feature in (set(df.columns)-set(old_features)):
+            # Parse new features
+            for feature in (set(self.data.columns)-set(old_features)):
                 self.settings.loc[feature] = [feature, False, 'none']
-                if df[feature].dtype == 'object':
-                    df[feature] = df[feature].fillna('Null')
-                    df[feature] = pd.Categorical(df[feature], np.sort(df[feature].unique()))
+                if self.data[feature].dtype == 'object':
+                    self.data[feature] = self.data[feature].fillna('Null')
+                    self.data[feature] = pd.Categorical( 
+                        self.data[feature], np.sort(self.data[feature].unique())
+                    )
                     self.settings.loc[feature, 'feature_type'] = 'cat'
                 else:
-                    if df[feature].nunique()<11:
+                    if self.data[feature].nunique()<11:
                         self.settings.loc[feature, 'feature_type'] = 'pnum'
                     else:
                         self.settings.loc[feature, 'feature_type'] = 'num'
     
+        # Save data and settings
         self.data.to_csv(os.path.join(self.main_gui.directory, self.data_file), index=False)
         self.settings.to_csv(os.path.join(self.main_gui.directory, self.settings_file))
         return
@@ -148,26 +160,33 @@ class FeatureEngr():
         return self.data.columns[self.data.nunique()<0.05*len(self.data)].to_list()
         
     def get_features_by_type(self, feature_types, insert_none=False):
+        # Check if list
         if not isinstance(feature_types, list):
             feature_types = [feature_types]
 
+        # Build feature list and sort
         feature_list = []
         for feature_type in feature_types:
             feature_list.extend(self.settings.name[self.settings.feature_type==feature_type].to_list())
-
         feature_list = sorted(feature_list)
+
+        # Optionally insert 'none'
         if insert_none:
             feature_list.insert(0, 'none')
         return feature_list
 
     def get_features_by_isdropped(self, isdropped, prefix=False, insert_none=False):
+        # Add category prefix
         if prefix:
             full_name = self.settings.feature_type + ' ' + self.settings.name
         else:
             full_name = self.settings.name
+        
+        # Build feature list and sort
         feature_list = full_name[self.settings.isdropped==isdropped].to_list()
-
         feature_list = sorted(feature_list)
+
+        # Optionally insert 'none'
         if insert_none:
             feature_list.insert(0, 'none')
         return feature_list

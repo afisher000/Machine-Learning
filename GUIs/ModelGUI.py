@@ -22,14 +22,14 @@ mw_Ui, mw_Base = uic.loadUiType('model_analysis_gui.ui')
 class ModelGUI(mw_Base, mw_Ui):
     def __init__(self, main_gui, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.setupUi(self)
         self.show()
         
-        # Import Layout
-        self.setupUi(self)
+        # Attributes
         self.main_gui = main_gui
-        self.main_gui.pipe.load_files()
+        self.figure = GUI_Figure(self, self.plot_layout)        
         
-        self.figure = GUI_Figure(self, self.plot_layout)
+        # Populate widgets and initialize model_analysis
         self.populate_pipeline_widgets()
         self.initialize_model()
         self.targettransform_combobox.addItems(['none', 'log1p', 'encoding'])
@@ -96,16 +96,18 @@ class ModelGUI(mw_Base, mw_Ui):
 
 
     def update_saved_models(self):
-        # Define and clear grid
+        # Clear layout
         grid = self.savedmodel_grid
         for i in reversed(range(grid.count())): 
             grid.itemAt(i).widget().setParent(None)
         
+        # Add title row
         titles = ['Model','Score']
         irow = 0
         for icol, title in enumerate(titles):
             grid.addWidget(qtw.QLabel(title, self), irow, icol)
 
+        # Add widgets, link to saved_models
         for model_label, row in self.model_analysis.saved_models.iterrows():
             box = qtw.QCheckBox(model_label, self)
             self.model_analysis.saved_models.loc[model_label, 'checkbox'] = box
@@ -116,11 +118,13 @@ class ModelGUI(mw_Base, mw_Ui):
             grid.addWidget(label, irow, 1)
 
     def create_submission(self):
+        # Get current model
         model_object = self.model_analysis.get_current_model_object()
         if model_object is None:
             qtw.QMessageBox.critical(self, 'Fit Model', 'No model has been fit')
             return
 
+        # Get predictions, save dataframe to file
         y_pred = self.transform_target(model_object.test_predictions, invert=True)
         predictions = pd.DataFrame({
             self.main_gui.id_feature:self.main_gui.id_test, 
@@ -226,6 +230,7 @@ class ModelGUI(mw_Base, mw_Ui):
         self.update_saved_models()
 
     def get_param_grid(self, layout):
+        # Build paramgrid from gui selections
         param_grid = {}
         for row in range(layout.rowCount()):
             checkbox = layout.itemAt(row, 0).widget()
@@ -265,8 +270,6 @@ class ModelGUI(mw_Base, mw_Ui):
             self.multimodel_paramgrid_layout.addRow( 
                 qtw.QCheckBox(param, self), qtw.QLineEdit(str(paramrange), self)
             )
-
-        
 
     def apply_pipeline(self):
         # Save pipe settings, check for new features, and update pipeline widgets
@@ -309,12 +312,14 @@ class ModelGUI(mw_Base, mw_Ui):
             qtw.QMessageBox.critical(self, 'Pipeline Error', f'Raised following error: {e}')
             return 1
 
+        # Save prepared data to model_analysis
         self.model_analysis.X = X
         self.model_analysis.X_test = X_test
         self.model_analysis.y = self.transform_target(self.y)
         return 0
 
     def transform_target(self, y, invert=False, allow_encoding=False):
+        # Apply transform or inverse transform to target feature.
         transform = self.targettransform_combobox.currentText()
         if not invert:
             if transform == 'none':
@@ -324,7 +329,7 @@ class ModelGUI(mw_Base, mw_Ui):
             elif transform == 'encoding':
                 map_str = self.encode_lineedit.text()
                 try:
-                    encoding_dict = self.main_gui.featengr.get_encoding_dict(map_str)
+                    encoding_dict = self.main_gui.featengr.get_encoding_dict(map_str, self.main_gui.target_feature)
                 except Exception as e:
                     qtw.QMessageBox.critical(self, 'Encoding Error', f'Raised following error: {e}\nApplying no transform')
                     return y
@@ -338,7 +343,7 @@ class ModelGUI(mw_Base, mw_Ui):
             elif transform == 'encoding':
                 map_str = self.encode_lineedit.text()
                 try:
-                    encoding_dict = self.main_gui.featengr.get_encoding_dict(map_str)
+                    encoding_dict = self.main_gui.featengr.get_encoding_dict(map_str, self.main_gui.target_feature)
                 except Exception as e:
                     qtw.QMessageBox.critical(self, 'Encoding Error', f'Raised following error: {e}\nApplying no transform')
                     return y

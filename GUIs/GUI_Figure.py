@@ -8,7 +8,10 @@ import pandas as pd
 import seaborn as sns
 class GUI_Figure():
     def __init__(self, gui, layout):
+        # Attributes
         self.gui = gui
+
+        # Initialize figure
         self.canvas = FigureCanvas(Figure(figsize=(3,3)))
         layout.addWidget(NavigationToolbar(self.canvas, self.gui))
         layout.addWidget(self.canvas)
@@ -49,22 +52,29 @@ class GUI_Figure():
         
     def boxenplot_and_piechart(self, data, x, y, hue, agg_fcn=None, switch_axes=False, median_ordering=False):
         self.reset_figure(ncols=2)
+
+        
+
+        # Optionally switch axes
         if switch_axes:
             x, y = y, x
             
+        if data[x].nunique()>0.05*len(data):
+            raise ValueError('Number of categories more than 5 percent of sample size.')
+
+        # Order categories by median value
         if median_ordering:
             data = data.copy()
             median_ordering = data.groupby(by=x)[y].median().sort_values().index.tolist()
             data[x] = data[x].cat.reorder_categories(median_ordering)
             
-        if data[x].nunique()>0.05*len(data):
-            return
-
+        # Optionally apply agg function
         if agg_fcn is None:
             sns.boxenplot(data=data, x=x, y=y, hue=hue, ax=self.ax[0])
         else:
             sns.barplot(data=data.dropna(subset=[x,y]), x=x, y=y, hue=hue, estimator=agg_fcn, ax=self.ax[0])
 
+        # Add pie chart
         self.ax[0].tick_params(axis='x', rotation=90)
         data[x].value_counts(dropna=False).sort_index().plot.pie(autopct='%.0f%%', ax=self.ax[1])
         self.draw()
@@ -72,7 +82,6 @@ class GUI_Figure():
 
     
     def histplot_and_piechart(self, data, x, hue, stat=None):
-        # Add check for number of unique in x?
         self.reset_figure(ncols=2)
 
         if data[x].nunique()>0.05*len(data):
@@ -82,6 +91,7 @@ class GUI_Figure():
             if data[hue].nunique()>0.05*len(data):
                 raise ValueError('Number of categories greater than 5 percent of sample size.')
 
+        # Make plots
         sns.histplot(data=data, x=x, hue=hue, stat='count', multiple='stack', kde=False, ax=self.ax[0])
         self.ax[0].tick_params(axis='x', rotation=90)
         data[x].value_counts(dropna=False).sort_index().plot.pie(autopct='%.0f%%', ax=self.ax[1])
