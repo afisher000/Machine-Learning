@@ -123,7 +123,11 @@ class DataGUI(mw_Base, mw_Ui):
             return 
 
         # Create new feature
-        self.main_gui.featengr.new_feature('dummies', feature=feature)
+        try:
+            self.main_gui.featengr.new_feature('dummies', feature=feature)
+        except Exception as e:
+            qtw.QMessageBox.critical(self, 'Dummies Error', f'{e}')
+            return
 
         # Reset gui inputs
         self.dummies_combobox.setCurrentText('none')
@@ -131,7 +135,7 @@ class DataGUI(mw_Base, mw_Ui):
 
     def undrop_feature(self):
         # Read feature
-        feature = self.parse_combobox_text(self.undrop_feature)
+        feature = self.parse_combobox_text(self.undrop_combobox)
         if feature is None:
             return
 
@@ -169,6 +173,7 @@ class DataGUI(mw_Base, mw_Ui):
             self.main_gui.featengr.new_feature('encode', feature=feature, map_str=map_str, encodeby=encodeby)
         except Exception as e:
             qtw.QMessageBox.critical(self, 'Encoding Error', f'Encoding raised following error: {e}')
+            return
 
         # Reset gui inputs
         self.encode_combobox.setCurrentText('none')
@@ -180,9 +185,10 @@ class DataGUI(mw_Base, mw_Ui):
         dropped_features = self.main_gui.featengr.get_features_by_isdropped(True)
         undropped_features = self.main_gui.featengr.get_features_by_isdropped(False, prefix=True)
 
-        undropped_features_plus_none = undropped_features
-        undropped_features_plus_none.insert(0, 'none')
+        # undropped_features_plus_none = undropped_features
+        # undropped_features_plus_none.insert(0, 'none')
 
+        undropped_features_plus_none = self.main_gui.featengr.get_features_by_isdropped(False, prefix=True, insert_none=True)
         num_pnum_features_plus_none = self.main_gui.featengr.get_features_by_type(['num','pnum'])
         num_pnum_features_plus_none.insert(0, 'none')
 
@@ -238,8 +244,10 @@ class DataGUI(mw_Base, mw_Ui):
         output = []
         for combobox in comboboxes:
             text = combobox.currentText()
-            if text=='none':
+            if text == 'none':
                 output.append(None)
+            elif text.find(' ') == -1:
+                output.append(text)
             else:
                 prefix, feature = text.split(' ')
                 output.append(feature)
@@ -265,52 +273,56 @@ class DataGUI(mw_Base, mw_Ui):
             self.figure.draw()
             return 
         
-        if y is None:
+        try:
+            if y is None:
+                if x in num_features:
+                    self.figure.histplot(data, x, hue)
+                    return
+                else:
+                    self.figure.histplot_and_piechart(data, x, hue)
+                    return
+            
             if x in num_features:
-                self.figure.histplot(data, x, hue)
-                return
-            else:
-                self.figure.histplot_and_piechart(data, x, hue)
-                return
-        
-        if x in num_features:
-            if y in num_features:
-                self.figure.scatterplot(data, x, y, hue, size, style)
-            elif y in pnum_features:
-                self.figure.boxenplot_and_piechart( 
-                    data, x, y, hue, agg_fcn=agg_fcn, switch_axes=True
-                )
-            elif y in cat_features:
-                self.figure.boxenplot_and_piechart( 
-                    data, x, y, hue, agg_fcn=agg_fcn, switch_axes=True, median_ordering=True
-                )
-        elif x in pnum_features:
-            if y in num_features:
-                self.figure.boxenplot_and_piechart( 
-                    data, x, y, hue, agg_fcn=agg_fcn 
-                )
-            elif y in pnum_features:
-                self.figure.boxenplot_and_piechart( 
-                    data, x, y, hue, agg_fcn=agg_fcn 
-                )
-            elif y in cat_features:
-                self.figure.boxenplot_and_piechart( 
-                    data, x, y, hue, agg_fcn=agg_fcn, switch_axes=True, median_ordering=True 
-                )
-        elif x in cat_features:
-            if y in num_features:
-                self.figure.boxenplot_and_piechart( 
-                    data, x, y, hue, agg_fcn=agg_fcn, median_ordering=True 
-                )
-            elif y in pnum_features:
-                self.figure.boxenplot_and_piechart( 
-                    data, x, y, hue, agg_fcn = agg_fcn
-                )     
-            elif y in cat_features:
-                self.figure.histplot_and_piechart( 
-                    data, x, hue=y, stat='count'
-                )
-        
+                if y in num_features:
+                    self.figure.scatterplot(data, x, y, hue, size, style)
+                elif y in pnum_features:
+                    self.figure.boxenplot_and_piechart( 
+                        data, x, y, hue, agg_fcn=agg_fcn, switch_axes=True
+                    )
+                elif y in cat_features:
+                    self.figure.boxenplot_and_piechart( 
+                        data, x, y, hue, agg_fcn=agg_fcn, switch_axes=True, median_ordering=True
+                    )
+            elif x in pnum_features:
+                if y in num_features:
+                    self.figure.boxenplot_and_piechart( 
+                        data, x, y, hue, agg_fcn=agg_fcn 
+                    )
+                elif y in pnum_features:
+                    self.figure.boxenplot_and_piechart( 
+                        data, x, y, hue, agg_fcn=agg_fcn 
+                    )
+                elif y in cat_features:
+                    self.figure.boxenplot_and_piechart( 
+                        data, x, y, hue, agg_fcn=agg_fcn, switch_axes=True, median_ordering=True 
+                    )
+            elif x in cat_features:
+                if y in num_features:
+                    self.figure.boxenplot_and_piechart( 
+                        data, x, y, hue, agg_fcn=agg_fcn, median_ordering=True 
+                    )
+                elif y in pnum_features:
+                    self.figure.boxenplot_and_piechart( 
+                        data, x, y, hue, agg_fcn = agg_fcn
+                    )     
+                elif y in cat_features:
+                    self.figure.histplot_and_piechart( 
+                        data, x, hue=y, stat='count'
+                    )
+        except Exception as e:
+            qtw.QMessageBox.critical(self, 'Figure Error', f'{e}')
+            return
+
     def custom_plot(self):
         # Read inputs
         plot_type = self.parse_combobox_text(self.customplot_combobox)

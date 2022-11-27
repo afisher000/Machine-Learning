@@ -18,26 +18,27 @@ import os
 
 
 class BaseModel():
-    def __init__(self, model_string, base_estimator, param_grid):
+    def __init__(self, model_string, base_estimator, default_param_grid):
         self.label = model_string
         self.estimator = base_estimator
-        self.param_grid = param_grid
+        self.default_param_grid = default_param_grid
+        self.param_grid = None
         return
 
     def get_label(self):
         return self.label
 
 class ModelAnalysis():
-    def __init__(self, main_gui, X=None, X_test=None, y=None, scoring=None):
+    def __init__(self, main_gui):
         self.main_gui = main_gui
         self.model_type = main_gui.model_type #classifier or regressor
         self.current_model_object = None
-        self.cv = 5
+        self.cv = None
 
-        self.X = X
-        self.X_test = X_test
-        self.y = y
-        self.scoring = scoring
+        self.X = None
+        self.X_test = None
+        self.y = None
+        self.scoring = None
 
         self.models_folder = 'SavedModels'
         self.saved_models = self.load_saved_models()
@@ -121,6 +122,7 @@ class ModelAnalysis():
 
 
     def create_model_object(self, model_string):
+        # Get param_grid and consider selected saved models
         param_grid = self.param_grid_dict[model_string]
         isSelected = self.saved_models.checkbox.apply(lambda x: x.isChecked())  
         
@@ -156,6 +158,7 @@ class ModelAnalysis():
             estimator = self.estimator_dict[model_string][self.model_type]
             model_label = model_string
         
+        # Create model object from label, estimator, and param_grid
         self.current_model_object = BaseModel(model_label, estimator, param_grid)
         return
 
@@ -165,22 +168,23 @@ class ModelAnalysis():
 
         # If param_grid not specified, use single default hyperparameter
         if param_grid is None:
-            default_hyperparam = list(model_object.param_grid.keys())[0]
-            param_grid = {default_hyperparam:model_object.param_grid[default_hyperparam]}
+            default_item = list(model_object.default_param_grid.items())[0]
+            param_grid = {default_item[0]:default_item[1]}
+        else:
+            model_object.param_grid = param_grid
 
         # Fit grid
         grid = GridSearchCV(model_object.estimator, n_jobs=-1, cv=self.cv, param_grid=param_grid, scoring=self.scoring)
         grid.fit(self.X, self.y)
         scores = cross_val_score(grid.best_estimator_, self.X, self.y, cv=self.cv, n_jobs=-1, scoring=self.scoring)
        
-        # Update model
+        # Update model object
         model_object.mean_score = scores.mean()
         model_object.scores = scores
         model_object.estimator = grid.best_estimator_
         model_object.estimator.fit(self.X, self.y)
         model_object.train_predictions = model_object.estimator.predict(self.X)
         model_object.test_predictions = model_object.estimator.predict(self.X_test)
-
         return 
 
 
@@ -191,6 +195,7 @@ class ModelAnalysis():
         train_sizes, train_scores, valid_scores = learning_curve( 
             model_object.estimator, self.X, self.y, train_sizes = np.linspace(.1, 1, samples), cv=self.cv, n_jobs=-1, scoring=self.scoring
         )
+
         if ax is None:
             fig, ax = plt.subplots()
         ax.plot(train_sizes, train_scores.mean(axis=1), label='Training')
@@ -204,6 +209,9 @@ class ModelAnalysis():
 
     def validation_curve(self, ax=None):
         model_object = self.current_model_object
+        if model_object.param_grid is None:
+            raise ValueError('No hyperparameters used in current model')
+
         param_name, param_range = list(model_object.param_grid.items())[0]
 
         train_scores, valid_scores = validation_curve( 
@@ -237,8 +245,6 @@ class ModelAnalysis():
         return saved_models
 
     def save_model(self, model_name):
-        # Test whether this saves a reference to the model or a copy of the model
-        # distinct from the model_string.
         model_object = self.current_model_object
         model_object.estimator.fit(self.X, self.y)
 

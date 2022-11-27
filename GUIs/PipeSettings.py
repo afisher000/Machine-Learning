@@ -50,7 +50,6 @@ class Pipe():
         return self.settings.index[self.settings.is_selected]
     
     def save_settings(self):
-        
         for feature, row in self.widget_ptrs.iterrows():
             is_selected = row.checkbox.isChecked()
             scale_strat = row.scaling_menu.currentText()

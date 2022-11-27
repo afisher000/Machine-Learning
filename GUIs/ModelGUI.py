@@ -1,6 +1,4 @@
 # %%
-from ClassifierAnalysis import ClassifierModels
-from RegressorAnalysis import RegressorModels
 from ModelAnalysis import ModelAnalysis
 from Pipelines import FeatureTransforms, Imputation, Scaling, KeepSelectedFeatures
 from sklearn.pipeline import Pipeline
@@ -200,7 +198,10 @@ class ModelGUI(mw_Base, mw_Ui):
 
     def plot_validation_curve(self):
         self.figure.reset_figure(ncols=1)
-        self.model_analysis.validation_curve(ax=self.figure.ax)
+        try:
+            self.model_analysis.validation_curve(ax=self.figure.ax)
+        except Exception as e:
+            qtw.QMessageBox.critical(self, 'Plotting Error', f'{e}')
         self.figure.canvas.draw()
         return
 

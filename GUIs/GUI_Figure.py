@@ -76,12 +76,12 @@ class GUI_Figure():
         self.reset_figure(ncols=2)
 
         if data[x].nunique()>0.05*len(data):
-            print('save yourself!')
-            return
+            raise ValueError('Number of categories greater than 5 percent of sample size.')
+            
         if hue is not None:
             if data[hue].nunique()>0.05*len(data):
-                print('save yourself!')
-                return
+                raise ValueError('Number of categories greater than 5 percent of sample size.')
+
         sns.histplot(data=data, x=x, hue=hue, stat='count', multiple='stack', kde=False, ax=self.ax[0])
         self.ax[0].tick_params(axis='x', rotation=90)
         data[x].value_counts(dropna=False).sort_index().plot.pie(autopct='%.0f%%', ax=self.ax[1])

@@ -40,6 +40,9 @@ class FeatureEngr():
             )
 
         elif transform == 'dummies':
+            if self.data[feature].nunique()>11:
+                raise ValueError(f'Too many categories for {feature} to create dummies.')
+                
             self.data = pd.concat([ 
                 self.data, 
                 pd.get_dummies(self.data[feature], prefix=feature)], axis=1
@@ -90,8 +93,6 @@ class FeatureEngr():
                 for category, median in grouped.items():
                     encode_map[category]=median
 
-                
-
             try:
                 self.data['enc'+feature] = self.data[feature].map(encode_map).astype('float')
             except Exception as e:
@@ -121,7 +122,7 @@ class FeatureEngr():
                     df[feature] = pd.Categorical(df[feature], np.sort(df[feature].unique()))
                     self.settings.loc[feature, 'feature_type'] = 'cat'
                 else:
-                    if df[feature].nunique()<11: #TODO make 11 and attribute? Used multiple locations
+                    if df[feature].nunique()<11:
                         self.settings.loc[feature, 'feature_type'] = 'pnum'
                     else:
                         self.settings.loc[feature, 'feature_type'] = 'num'
@@ -131,7 +132,11 @@ class FeatureEngr():
         return
 
     def save_featengr_code(self, feature, code):
-        # TODO Check if feature is target feature...
+        # Do not save data analysis that uses target_feature
+        if feature == self.main_gui.target_feature:
+            return
+        
+        # Write feature engineering code to file
         with open(os.path.join(self.main_gui.directory, self.featengr_file), 'a') as f:
             f.write(code)
             f.write('\n')
@@ -142,27 +147,37 @@ class FeatureEngr():
     def get_discrete_features(self):
         return self.data.columns[self.data.nunique()<0.05*len(self.data)].to_list()
         
-    def get_features_by_type(self, feature_types):
-        # Sort?
+    def get_features_by_type(self, feature_types, insert_none=False):
         if not isinstance(feature_types, list):
             feature_types = [feature_types]
 
         feature_list = []
         for feature_type in feature_types:
             feature_list.extend(self.settings.name[self.settings.feature_type==feature_type].to_list())
-        return sorted(feature_list)
 
-    def get_features_by_isdropped(self, isdropped, prefix=False):
-        # Sort?
+        feature_list = sorted(feature_list)
+        if insert_none:
+            feature_list.insert(0, 'none')
+        return feature_list
+
+    def get_features_by_isdropped(self, isdropped, prefix=False, insert_none=False):
         if prefix:
             full_name = self.settings.feature_type + ' ' + self.settings.name
         else:
             full_name = self.settings.name
         feature_list = full_name[self.settings.isdropped==isdropped].to_list()
-        return sorted(feature_list)
+
+        feature_list = sorted(feature_list)
+        if insert_none:
+            feature_list.insert(0, 'none')
+        return feature_list
 
     def create_files(self):
-        # Read and differentiate train data
+        # Create blank feature_engineering_code 
+        with open(os.path.join(self.main_gui.directory, self.featengr_file),'w') as f:
+            pass
+
+        # Read train data
         data = pd.read_csv(os.path.join(self.main_gui.directory, 'train.csv'))
         
         # Parse features
@@ -175,10 +190,6 @@ class FeatureEngr():
         for feature in obj_features:
             data[feature] = pd.Categorical(data[feature], np.sort(data[feature].unique()))
         
-        # Create blank feature_engineering_code 
-        with open(os.path.join(self.main_gui.directory, self.featengr_file),'w') as f:
-            pass
-
         # Build featsettings
         settings = pd.DataFrame(index=data.columns)
         settings['name'] = data.columns
@@ -186,7 +197,6 @@ class FeatureEngr():
         settings.loc[obj_features, 'feature_type'] = 'cat'
         settings.loc[num_features[is_pnum], 'feature_type'] = 'pnum'
         settings.loc[num_features[~is_pnum], 'feature_type'] = 'num'
-
 
         # Save to file
         data.to_csv(os.path.join(self.main_gui.directory, self.data_file), index=False)

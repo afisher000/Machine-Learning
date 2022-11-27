@@ -27,13 +27,9 @@ rcParams.update({'figure.autolayout': True}) # to automatically fit long axis ti
 
 # To IMPLEMENT
 # Add time of run and circle to death to see that it is running
-# Put error if trying to use dummies on categories with too many entries
-# Validation doesn't change with selected paramgrid now...
-# Sort saved models by score
 # Add default clip values when only one is specified (min or max are default)
 # Replace 'none' with '' in menus
-
-
+# Only allow one gui window of each type at a time
 
 mw_Ui, mw_Base = uic.loadUiType('master_window.ui')
 class MainGUI(mw_Base, mw_Ui):
