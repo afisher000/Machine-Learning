@@ -1,49 +1,51 @@
-# %% 
+# %%
 import numpy as np
 import cv2 as cv
-from PIL import Image
-
-img = cv.imread('test_staff.jpg')
-gray = img.mean(axis=2)
-gray = np.where(gray>240, 255, 0).astype('uint8')
-
-# TODO 
-# Use horizontal erosion to determine larger clumps
-# Then you can tell where vertical lines are due to clumped notes or accidentals
 
 
-def dilate_and_erode(img, shape):
-    kernel = np.ones(shape, np.uint8)
-    dilated = cv.dilate(img, kernel, iterations=1)
-    return cv.erode(dilated, kernel, iterations=1)
+class Test():
+    def __init__(self):
+        self.threshold = 127
+        self.kernel_h = 3
+        self.kernel_w = 3
+        self.img = cv.imread('test_staff.jpg', 0)
 
-def erode_and_dilate(img, shape):
-    kernel = np.ones(shape, np.uint8)
-    eroded = cv.erode(img, kernel, iterations=1)
-    return cv.dilate(eroded, kernel, iterations=1)
+        cv.namedWindow('contours')
+        cv.createTrackbar('KernelH', 'contours', 1, 10, self.update)
+        cv.createTrackbar('KernelW', 'contours', 1, 10, self.update)
+        cv.createTrackbar('Threshold', 'contours', 0, 255, self.update)
 
-no_vert_lines = dilate_and_erode(gray, (1,4))
-no_horz_lines = dilate_and_erode(gray, (5,1))
-# no_lines = dilate_and_erode(no_vert_lines, (5,1))
-# all_vert_lines = dilate_and_erode(gray, (35,1))
-# long_vert_lines = dilate_and_erode(gray, (50, 1))
-# short_vert_lines = cv.bitwise_or(all_vert_lines, cv.bitwise_not(long_vert_lines))
-# acc_lines = cv.bitwise_or(short_vert_lines, cv.bitwise_not(no_vert_lines))
-# acc_lines_dilated = erode_and_dilate(acc_lines, (10, 1))
-
-contours = cv.findContours(no_horz_lines, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
-if len(contours)==2:
-    contours=contours[0]
-else:
-    raise ValueError
-
-for c in contours:
-    print(c)
-    x,y,w,h = cv.boundingRect(c)
-    cv.rectangle(no_horz_lines, (x,y), (x+w,y+h), (0,255,0), 2)
-
-Image.fromarray(no_horz_lines).show()
+        cv.setTrackbarPos("KernelH", "contours", self.kernel_h)
+        cv.setTrackbarPos("KernelW", "contours", self.kernel_w)
+        cv.setTrackbarPos("Threshold", "contours", self.threshold)
+        self.update()
+        
+        cv.waitKey()
+        cv.destroyAllWindows()
 
 
+
+    def update(self, slider_value=0):
+        # Update parameters
+        self.threshold = cv.getTrackbarPos('Threshold','contours')
+        self.kernel_h = cv.getTrackbarPos('KernelH','contours')
+        self.kernel_w = cv.getTrackbarPos('KernelW', 'contours')
+
+
+        # Apply thresholding
+        ret, thresh = cv.threshold(self.img, self.threshold, 255, 0)
+
+        # Get closed image
+        kernel = np.ones((self.kernel_h, self.kernel_w), dtype=np.uint8)
+        img_opened = cv.morphologyEx(thresh, cv.MORPH_CLOSE, kernel)
+
+        # Find and draw contours
+        green = [0, 255, 0]
+        contours, hierarchy = cv.findContours(img_opened, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
+        color = cv.cvtColor(self.img, cv.COLOR_GRAY2BGR)
+        cv.drawContours(color, contours, -1, green, 2)
+        cv.imshow('contours', color)
+
+test = Test()
 
 # %%
