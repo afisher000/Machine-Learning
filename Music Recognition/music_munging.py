@@ -8,76 +8,61 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from utils import get_ellipse_goodness, convert_to_jpg
 
+# # # To be implemented
+# Separate pages into lines (simple as how close first staff line is to top of page?)
+# Fix categorize_shapes, save staff dimensions/mapping from inspect_line
 
-class MusicMunging():
-    def __init__(self, file):
-        # Define attributes
-        self.blue, self.green, self.red = [(255, 0, 0), (0, 255, 0), (0, 0, 255)]
-        self.cyan, self.magenta, self.yellow = [(255,255,0), (255,0,255), (0, 255, 255)]
-        self.staff_margin_factor = 3.2
-        self.staff_spacing = None
-        self.scale = None
-        self.notes = pd.DataFrame(columns=['type','line', 'col', 'pitch'])
 
-        # Read file, threshold, and munge
-        jpg_file = convert_to_jpg(file)
-        _, gray_page = cv.threshold(cv.imread(jpg_file, 0), 127, 255, 0)
+class AnalyzeLine():
+    def __init__(self, file, is_treble):
+            _, gray = cv.threshold(cv.imread('testline.jpg', 0), 127, 255, 0)
+            self.is_treble = is_treble
+            self.staff_margin_factor = 3.2
+            self.staff_spacing = None
+            self.scale = None
+            self.notes = pd.DataFrame(columns=['type','line', 'col', 'pitch'])
+            self.blue, self.green, self.red = [(255, 0, 0), (0, 255, 0), (0, 0, 255)]
+            self.cyan, self.magenta, self.yellow = [(255,255,0), (255,0,255), (0, 255, 255)]
+            self.unit_length = None #pixel distance between staff lines
 
-        # Split into lines
-        num_lines = self.split_music_into_lines(gray_page)
-        for line in range(num_lines):
-            self.analyze_line(f'line{line}.jpg')
-
-    def analyze_line(self, file):
-            _, gray = cv.threshold(cv.imread(file, 0), 127, 255, 0)
-
+            self.data = pd.DataFrame(columns=['meas','col','pitch','object'])
+            
+            # Inspect line
+            self.inspect_line(gray)
+            
             # Fill elliptical notes
             gray = self.clean_music_line(gray)
-            gray = self.fill_contours(gray, min_area=600, max_area=900, max_e=6.0)
+            cv.imwrite('testline_cleaned.jpg', gray)
+            gray = self.fill_contours(gray, min_area=400, max_area=1200, max_e=16.0)
+            cv.imwrite('testline_elliptic_filled.jpg', gray)
 
             # Remove staff lines, OPEN to connect some flats
             gray = self.remove_staff_lines(gray)
             gray = cv.morphologyEx(gray, cv.MORPH_OPEN, kernel=np.ones((1,3), np.uint8))
-
+            cv.imwrite('testline_removed_staff.jpg', gray)
+            
             # Fill remaining notes, CLOSE to remove all lines
             gray = self.fill_contours(gray, min_area=100, max_area=1000)
-            gray = cv.morphologyEx(gray, cv.MORPH_CLOSE, np.ones((8,8), dtype=np.uint))
-
+            gray = cv.morphologyEx(gray, cv.MORPH_CLOSE, np.ones((8,8), dtype=np.uint8))
+            cv.imwrite('testline_final.jpg', gray)
+            
             # Categorize
             self.categorize_shapes()
+    
 
-
-    def get_line_rows_by_cond(self, gray, avg_pixel=127):
-        # Return starts and ends of lines where row average is less than avg_pixel.
-        cond = (gray.sum(axis=1)/gray.shape[1]) < avg_pixel
-        line_starts = ((~cond[:-1])&cond[1:]).nonzero()[0]
-        line_ends = ((cond[:-1])&(~cond[1:])).nonzero()[0]+1
-        return line_starts, line_ends
-
-
-    def split_music_into_lines(self, gray):
-        # Remove all-white columns
-        non_white_cols = gray.sum(axis=0)<255*gray.shape[0]
-        gray = gray[:, non_white_cols]
-
-        # Compute staff_spacing and scale
-        line_starts, line_ends = self.get_line_rows_by_cond(gray)
-        line_sep = np.diff(line_starts[:4]).mean()
-        num_lines = len(line_starts)//5
-
-        # Could be moved
-        self.staff_spacing = line_sep
-        self.scale = self.staff_spacing/38.7
+    def inspect_line(self, gray):
+        is_line = (gray.sum(axis=1)/gray.shape[1]) < 127
+        is_line_start = np.logical_and(~is_line[:-1], is_line[1:])
+        is_line_end = np.logical_and(is_line[:-1], ~is_line[1:])
+        start_rows = np.where(is_line_start)[0] + 1
+        end_rows = np.where(is_line_end)[0] + 1
         
-
-        # Create jpgs for each line
-        tops = list(map(int, line_starts[0::5] - 4*line_sep))
-        bottoms = list(map(int, line_ends[4::5] + 4*line_sep))
-        left = int(3.5*line_sep)
-        right = int(-1.0*line_sep)
-        [cv.imwrite(f'line{j}.jpg', gray[tops[j]:bottoms[j], left:right]) for j in range(num_lines)]
-        return num_lines
-
+        self.unit_length = np.mean(np.diff(start_rows))
+        self.start_rows = start_rows
+        self.end_rows = end_rows
+        self.line_rows = self.start_rows/2 + self.end_rows/2
+        
+        
     def clean_music_line(self, gray):       
         # Build new image from staff contour rect and stem_rows
         new_gray = 255*np.ones(gray.shape, dtype=np.uint8)
@@ -88,28 +73,26 @@ class MusicMunging():
         x,y,w,h = cv.boundingRect(c)
 
         # Get masks of vertical lines
-        short_lines = cv.morphologyEx(gray, cv.MORPH_CLOSE, kernel=np.ones((140,1), dtype=np.uint8))
-        stem_rows = np.where(short_lines.sum(axis=1)/short_lines.shape[1] < 255)[0]
+        short_line_kernel = np.ones((140,1), dtype=np.uint8)
+        short_lines_mask = cv.morphologyEx(gray, cv.MORPH_CLOSE, kernel=short_line_kernel)
+        stem_rows = np.where(short_lines_mask.sum(axis=1)/short_lines_mask.shape[1] < 255)[0]
 
         # Find largest of union
         top = min(stem_rows.min(), y)
         bottom = min(stem_rows.max(), y+h)
         new_gray[top:bottom] = gray[top:bottom]
         return new_gray
-
-
+    
     def remove_staff_lines(self, gray):
-        line_starts, line_ends = self.get_line_rows_by_cond(gray)
-
         # If pixels above and below are white, whiten column
-        for start, end in zip(line_starts, line_ends):
-            mask = gray[start,:]&gray[end,:]
-            gray[start+1:end,:] = mask
+        for start, end in zip(self.start_rows, self.end_rows):
+            mask = gray[start-1,:]&gray[end+1,:]
+            gray[start:end,:] = mask
         return gray
 
 
     def fill_contours(self, gray, min_area=None, max_area=None, max_e=None):
-        contours, _ = cv.findContours(gray, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
+        contours, _ = cv.findContours(255-gray, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
         for c in contours:
             # Length of c must be >5 to fit ellipse
             if len(c)<5:
@@ -184,8 +167,55 @@ class MusicMunging():
 
         cv.imwrite('highlighted notes.jpg', color)
         return
+    
+class AnalyzeSong():
+    def __init__(self, file, songname):
+        # Define attributes
+        self.songname = songname
 
-test = MusicMunging('test_song_1.pdf')
+        # Read file, threshold, and munge
+        jpg_file = convert_to_jpg(file)
+        _, gray_page = cv.threshold(cv.imread(jpg_file, 0), 127, 255, 0)
+
+        # Split into lines
+        num_lines = self.split_music_into_lines(gray_page)
+        line_objects = []
+        for line in range(num_lines):
+            line_file = f'line{line}.jpg'
+            is_treble = (line%2==0)
+            line_objects.append(AnalyzeLine(line_file, is_treble))
+
+
+    def split_music_into_lines(self, gray):
+        # Remove all-white columns
+        non_white_cols = gray.sum(axis=0)<255*gray.shape[0]
+        gray = gray[:, non_white_cols]
+
+        # Compute staff_spacing and scale
+        is_line = (gray.sum(axis=1)/gray.shape[1]) < 127
+        is_line_start = np.logical_and(~is_line[:-1], is_line[1:])
+        is_line_end = np.logical_and(is_line[:-1], ~is_line[1:])
+        start_rows = np.where(is_line_start)[0] + 1
+        end_rows = np.where(is_line_end)[0] + 1
+        
+        unit_length = np.mean(np.diff(start_rows[:5]))
+        num_lines = len(start_rows)//5
+        
+
+        # Create jpgs for each line
+        tops = list(map(int, start_rows[0::5] - 4*unit_length))
+        bottoms = list(map(int, end_rows[4::5] + 4*unit_length))
+        left = int(3.5*unit_length)
+        right = int(-1.0*unit_length)
+        cv.imwrite(f'testline.jpg', gray[tops[0]:bottoms[0],left:right])
+        # [cv.imwrite(f'line{j}.jpg', gray[tops[j]:bottoms[j], left:right]) for j in range(num_lines)]
+        return num_lines
+
+
+
+
+
+test = AnalyzeSong('test_song_1.jpg', 'test_song')
 test.notes.to_csv('note_data.csv', index=False)
 # %%
 

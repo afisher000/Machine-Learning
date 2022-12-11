@@ -13,8 +13,6 @@ def convert_to_jpg(file):
         return dest
 
 
-    
-
 def pdf2jpg(file, dest=None):
     doc = fitz.open(file)
     page = doc[0]
