@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import pickle
-from contour_utils import get_contour_data
+from utils_contours import get_contour_data
 
 def split_music_into_lines(img):
     # Remove all-white columns
@@ -82,6 +82,21 @@ def munging_before_parsing_song(blobs, line_sep, img_heights):
     blobs['raw_line'] = blobs.cy.apply(lambda x: np.where(x-np.cumsum(img_heights)<0)[0][0])
     blobs['is_bass'] = blobs.raw_line.mod(2).astype('bool')
     blobs['line'] = blobs.raw_line//2
+    blobs = blobs.sort_values(by=['line','cx'])
+
+    # Group chords by cx
+    xmin, xmax, dx = 0, 0, 2*line_sep
+    xarr = blobs.cx.values
+    for j in range(len(xarr)):
+        x = xarr[j]
+        if x>xmax:
+            xmin = int(x)
+            xmax = x+dx
+        else:
+            xarr[j] = xmin
+
+
+
 
     # Compute "staff pitch" (0 is center c, increment every 0.5*line_sep)
     blobs['staff_pitch'] = (-2/line_sep * blobs.cy.mod(img_heights[0]) + 18 - 12*blobs.is_bass).round().astype(int)
@@ -91,7 +106,7 @@ def munging_before_parsing_song(blobs, line_sep, img_heights):
     blobs['pitch'] = blobs.staff_pitch.mod(7).map(semitone_map) + 12*blobs.staff_pitch.floordiv(7)
 
     # Compute measure (separate into treble and bass to compute, then recombine)
-    blobs = blobs.sort_values(by=['line','cx'])
+
     bass_blobs = blobs[blobs.is_bass].copy()
     treble_blobs = blobs[~blobs.is_bass].copy()
     bass_blobs['measure'] = np.cumsum(bass_blobs.state=='m') + bass_blobs.line
@@ -146,7 +161,8 @@ def parse_song_notes(song_input, line_sep):
                 pitch = row.pitch + accidentals[row.staff_pitch]
             elif row.staff_pitch%7 in keysignature.keys():
                 pitch = row.pitch + keysignature[row.staff_pitch%7]
-            notes.loc[len(notes)] = [row.line, row.measure, pitch, row.cx-measure_start_x]
+                # I choose to leave as full x
+            notes.loc[len(notes)] = [row.line, row.measure, pitch, row.cx]
         if row.state == 'm':
             # Reset accidentals on new measure. Reset measure_start_x
             accidentals = {}

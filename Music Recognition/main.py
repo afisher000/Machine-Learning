@@ -13,6 +13,10 @@ from sklearn.svm import SVC
 
 # To implement 
 # Identify more objects
+# Chord analyzer
+# Better way to clump notes than rounding cx (possible errors)
+# Function that writes to song
+
 
 # Convert to jpg if necesary
 song_file = 'test_whole_notes.pdf'
@@ -50,6 +54,7 @@ song_input = umc.munging_before_parsing_song(blobs, line_sep, img_heights)
 
 ## Parse song accidentals and key signature
 notes = umc.parse_song_notes(song_input, line_sep)
+notes.to_csv('notes.csv', index=False)
 
 
 
