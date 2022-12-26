@@ -39,7 +39,7 @@ def select_contours(img, filled_value=100):
 
 def get_contour_data(mask, line_sep, specified_contours=None, contour_df=None, is_selected=True, filters={}, return_contours=False):
     if contour_df is None:
-        contour_df = pd.DataFrame(columns=['state', 'cx', 'cy','area','width','height','aspectratio','extent','solidity', 'normangle'])
+        contour_df = pd.DataFrame(columns=['state', 'cx', 'cy','area', 'x','y','width','height','aspectratio','extent','solidity', 'normangle'])
 
     if specified_contours is None:
         contours, _ = cv.findContours(mask, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
@@ -61,7 +61,7 @@ def get_contour_data(mask, line_sep, specified_contours=None, contour_df=None, i
         area = cv.contourArea(c)
         if area>5*line_sep**2:
             continue
-        _,_,w,h = cv.boundingRect(c)
+        x,y,w,h = cv.boundingRect(c)
         hull = cv.convexHull(c)
         hull_area = cv.contourArea(hull)
         _,(MA,ma),angle = cv.fitEllipse(c)
@@ -93,7 +93,7 @@ def get_contour_data(mask, line_sep, specified_contours=None, contour_df=None, i
                     continue
 
         # Append to dataframe
-        contour_df.loc[len(contour_df)] = [is_selected, cx, cy, area, w, h, aspect_ratio, extent, solidity, normangle]
+        contour_df.loc[len(contour_df)] = [is_selected, cx, cy, area, x,y, w, h, aspect_ratio, extent, solidity, normangle]
         valid_contours.append(c)
 
     if return_contours:
