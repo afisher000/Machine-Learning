@@ -3,7 +3,6 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import pickle
-from utils_contours import get_contour_data
 
 def split_music_into_lines(img):
     # Remove all-white columns
@@ -46,29 +45,10 @@ def remove_words_from_line(img, line_sep):
     img[bottom:] = 255
     return img
 
-def fill_notes_from_model(img, line_sep):
-    svc = pickle.load(open('model_to_fill_notes.pkl','rb'))
-    contour_data = get_contour_data(img, line_sep)
-    X = contour_data.drop(columns=['state','cx','cy', 'x', 'y']).values
-    contour_data.state = svc.predict(X)
 
-    for index, row in contour_data.iterrows():
-        if row.state==1:
-            cv.floodFill(img, None, (int(row.cx), int(row.cy)), 0)
-    return img
-
-def identify_blobs_from_model(img, line_sep):
-    svc = pickle.load(open('model_to_identify_notes.pkl','rb'))
-    blobs = get_contour_data(img, line_sep)
-    X = blobs.drop(columns=['state','cx','cy', 'x', 'y']).values
-    blobs.state = svc.predict(X)
-    return blobs
-
-
-
-def munge_blob_data(blobs, line_sep, img_heights, closed_img):
+def munge_blob_data(closed_img, blobs, line_sep, line_height):
     blobs = blobs[blobs.state!='none']
-    blobs['raw_line'] = blobs.cy.apply(lambda x: np.where(x-np.cumsum(img_heights)<0)[0][0])
+    blobs['raw_line'] = blobs.cy.floordiv(line_height)
     blobs['is_bass'] = blobs.raw_line.mod(2).astype(bool)
     blobs['total_cx'] = blobs.raw_line*blobs.cx.max() + blobs.cx
     blobs = blobs.sort_values(by=['raw_line','cx'])
@@ -90,20 +70,18 @@ def munge_blob_data(blobs, line_sep, img_heights, closed_img):
     song_input = pd.DataFrame(columns=['state','cx','cy','line','measure','staff_pitch','pitch'])
     for index, row in blobs.iterrows():
         line = row.raw_line//2
-        staff_pitch= round(-2/line_sep * (row.cy%img_heights[0]) + 18 - 12*row.is_bass)
+        staff_pitch= round(-2/line_sep * (row.cy%line_height) + 18 - 12*row.is_bass)
         pitch = semitone_map[staff_pitch%7] + 12*(staff_pitch//7)
         measure = sum((blobs.state=='m')&(blobs.is_bass==row.is_bass)&(blobs.total_cx<row.total_cx))
         if row.state in '234':
             centers = get_kmean_cluster_centers(row, closed_img)
-            for (y0,x0) in centers:
-                staff_pitch = round(-2/line_sep * (y0%img_heights[0]) + 18 - 12*row.is_bass)
+            for (cy0,cx0) in centers:
+                staff_pitch = round(-2/line_sep * (cy0%line_height) + 18 - 12*row.is_bass)
                 pitch = semitone_map[staff_pitch%7] + 12*(staff_pitch//7)
-                song_input.loc[len(song_input)] = ['1', x0, y0, line, measure, staff_pitch, pitch]
+                song_input.loc[len(song_input)] = ['1', cx0, cy0, line, measure, staff_pitch, pitch]
         else:
             song_input.loc[len(song_input)] = [row.state, row.cx, row.cy, line, measure, staff_pitch, pitch]
             
-            
-
             
     return song_input
             
@@ -190,6 +168,7 @@ def append_measure_lines(img, blobs, line_sep):
     vert_lines = ~cv.morphologyEx(img.copy(), cv.MORPH_CLOSE, kernel)
     contours, _ = cv.findContours(vert_lines, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
 
+    # CLEAN UP? Use sorting with xc_total to only check for close neighbors
     for c in contours:
         M = cv.moments(c)
         # Zero area contours possible 
@@ -199,26 +178,8 @@ def append_measure_lines(img, blobs, line_sep):
         cy = int(M['m01']/M['m00'])
         is_far_in_x = np.abs(cx-blobs.cx)>1.5*line_sep
         is_far_in_y = np.abs(cy-blobs.cy)>3*line_sep
+        
         # Measure lines must be either far away in x, or far away in y for all blobs
         if np.all(np.logical_or(is_far_in_x, is_far_in_y)):
             blobs.loc[len(blobs), ['state','cx','cy']] = ['m', cx, cy] 
     return blobs
-
-def print_marked_music(img, song_input, line_sep):
-    # Add colored tags to image
-    color_map = { 
-        '1':(0,0,255),
-        '2':(0,0,255),
-        '3':(255,255,0),
-        's':(255,0,0),
-        'f':(255,0,0),
-        'n':(255,0,0),
-        'm':(0,255,255),
-        'none':(0,255,0)
-    }
-
-    color_orig = cv.cvtColor(img, cv.COLOR_GRAY2BGR)
-    for key, color in color_map.items():
-        for index, (cx, cy) in song_input.loc[song_input.state==key, ['cx','cy']].iterrows():
-            cv.circle(color_orig, (int(cx), int(cy)), 15, color, -1)
-    cv.imwrite('Processed Images\\test_identified_music.jpg',color_orig)

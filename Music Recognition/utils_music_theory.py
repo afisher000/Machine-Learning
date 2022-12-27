@@ -1,9 +1,16 @@
-# %%
+# -*- coding: utf-8 -*-
+"""
+Created on Mon Dec 26 17:14:46 2022
+
+@author: afisher
+"""
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-# Read files
+# Store cumbersome mappings?
+
 def identify_chords(notes, key_type):
 
     cs = []
@@ -73,11 +80,3 @@ def identify_chords(notes, key_type):
     for j in range(len(cs)):
         c = cs[j]
         identify_chord(c)
-
-
-
-
-
-
-
-# %%
