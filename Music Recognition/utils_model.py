@@ -27,11 +27,11 @@ blob_colors = {
         's':(255,255,0),
         'f':(255,0,255),
         'n':(0,255,255),
-        'm':(0,255,255),
+        'm':(0,0,255),
         'none':(100,100,100)
     }
 
-def identify_blobs_using_model(img, line_sep):
+def identify_blobs_using_model(orig, img, line_sep):
     blobs = pd.DataFrame(columns=data_columns)
     blobs = get_contour_data(img, blobs, line_sep)
     
@@ -42,9 +42,38 @@ def identify_blobs_using_model(img, line_sep):
     model = pickle.load(open('model_to_identify_blobs.pkl','rb'))
     X = blobs[training_columns].values
     blobs.state = model.predict(X)
+    
+    blobs = append_measure_lines(orig, blobs, line_sep)
     return blobs
 
-def label_blobs_on_music(orig, blobs, line_sep):
+def append_measure_lines(img, blobs, line_sep):
+    # Identify measure lines
+    kernel = np.ones((int(3.5*line_sep), 1), dtype=np.uint8)
+    short_vert_lines = ~cv.morphologyEx(img.copy(), cv.MORPH_CLOSE, kernel)
+    
+    kernel = np.ones((int(4.5*line_sep), 1), dtype=np.uint8)
+    long_vert_lines = ~cv.morphologyEx(img.copy(), cv.MORPH_CLOSE, kernel)
+    
+    
+    contours, _ = cv.findContours(short_vert_lines&(~long_vert_lines), cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
+
+    # CLEAN UP? Use sorting with xc_total to only check for close neighbors
+    for c in contours:
+        M = cv.moments(c)
+        # Zero area contours possible 
+        if M['m00']==0:
+            continue
+        cx = int(M['m10']/M['m00'])
+        cy = int(M['m01']/M['m00'])
+        is_far_in_x = np.abs(cx-blobs.cx)>1.5*line_sep
+        is_far_in_y = np.abs(cy-blobs.cy)>3*line_sep
+        
+        # Measure lines must be either far away in x, or far away in y for all blobs
+        if np.all(np.logical_or(is_far_in_x, is_far_in_y)):
+            blobs.loc[len(blobs), ['state','cx','cy']] = ['m', cx, cy] 
+    return blobs
+
+def label_blobs_on_music(orig, blobs, line_sep):    
     # Add colored tags to image
     color_orig = cv.cvtColor(orig, cv.COLOR_GRAY2BGR)
     for key, color in blob_colors.items():
@@ -114,7 +143,7 @@ class Filling_Model_Validation():
         self.line_sep = line_sep
         self.filled_value = filled_value
         self.database = 'training_data_contours.csv'
-        self.model_file = 'model_to_fill_notes.pkl'
+        self.model_file = 'model_to_fill_contours.pkl'
 
         # Main loop
         cv.namedWindow='zoomed_out'
@@ -192,17 +221,19 @@ class Filling_Model_Validation():
         changes_mask = np.where(self.img==self.orig, 0, 255).astype('uint8')
         
 class Identifying_Model_Validation():
-    def __init__(self, orig, img, line_sep):
+    def __init__(self, orig, img, blobs, line_sep):
         self.orig = orig
         self.img = cv.cvtColor(img, cv.COLOR_GRAY2BGR)
+        self.blobs = blobs
         self.line_sep = line_sep
         self.database = 'training_data_blobs.csv'
         self.model_file = 'model_to_identify_blobs.pkl'
         
         # Label image
-        self.blobs = identify_blobs_using_model(img, line_sep)
         self.labeled_img = label_blobs_on_music(orig, self.blobs, line_sep)
-
+        
+        # Drop measures after labeling
+        self.blobs = self.blobs[self.blobs.state!='m']
         
         # Main loop
         cv.namedWindow='zoomed_out'

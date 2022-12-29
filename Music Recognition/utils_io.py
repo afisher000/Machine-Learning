@@ -42,7 +42,6 @@ def import_song(song_file):
 
 def show_image(img, reduce=0):
     temp = img.copy()
-    print(reduce)
     for j in range(abs(reduce)):
         temp = cv.pyrDown(temp) if reduce>0 else cv.pyrUp(temp)
     cv.imshow('test', temp)
