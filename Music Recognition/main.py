@@ -4,57 +4,56 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from utils import get_ellipse_goodness, convert_to_jpg
 import pickle
-from utils_contours import select_contours, get_contour_data
-from utils import show_image, get_staffline_separation, pdf2jpg
+import utils_model as um
+import utils_io as uio
 import utils_music_cleaning as umc
+import utils_music_theory as umt
 from sklearn.svm import SVC
 
-# To implement 
+# # To implement 
 # Identify more objects
-# Chord analyzer
-# Better way to clump notes than rounding cx (possible errors)
-# Function that writes to song
+# Try linear model?
+
+# Open song file as image
+song_file = 'Songs\\crown_him_with_many_crowns.pdf'
+orig = uio.import_song(song_file)
 
 
-# Convert to jpg if necesary
-song_file = 'test_whole_notes.pdf'
-if song_file.endswith('.pdf'):
-    pdf2jpg(song_file)
-song_file = song_file[:-4]+'.jpg'
-
-# Separate image into lines and clear words
-_, orig = cv.threshold(cv.imread(song_file, 0), 127, 255, 0)
+# Separate image into lines and clear words, and recombine
 imgs, line_sep = umc.split_music_into_lines(orig)
-img_heights = [img.shape[0] for img in imgs]
 cleaned_imgs = [umc.remove_words_from_line(img, line_sep) for img in imgs]
 cleaned_orig = np.vstack(cleaned_imgs)
+line_height = cleaned_orig.shape[0]/len(imgs)
 
 # Fill notes with model
-filled_img = umc.fill_notes_from_model(cleaned_orig.copy(), line_sep)
-cv.imwrite('test_filled.jpg',filled_img)
+filled_img = um.fill_contours_using_model(cleaned_orig.copy(), line_sep)
+cv.imwrite('Processed Images\\test_filled.jpg',filled_img)
 
 # Close image to remove lines
 close_pixels = int(0.25*line_sep)
 kernel = np.ones((close_pixels,close_pixels), dtype=np.uint8)
 closed_img = cv.morphologyEx(filled_img.copy(), cv.MORPH_CLOSE, kernel)
-cv.imwrite('test_closed.jpg', closed_img)
+cv.imwrite('Processed Images\\test_closed.jpg', closed_img)
 
 
 # Identify notes with model
-blobs = umc.identify_blobs_from_model(closed_img.copy(), line_sep)
+blobs = um.identify_blobs_using_model(closed_img.copy(), line_sep)
 
-# Add meaures
-blobs = umc.append_measure_lines(cleaned_orig, blobs, line_sep)
-umc.print_marked_music(cleaned_orig, blobs, line_sep)
+labeled_img = um.label_blobs_on_music(cleaned_orig, blobs, line_sep)
+uio.show_image(labeled_img)
 
-## Apply munnging to blobs to get input for song parsing
-song_input = umc.munging_before_parsing_song(blobs, line_sep, img_heights)
+# # Add measures
+# blobs = umc.append_measure_lines(cleaned_orig, blobs, line_sep)
 
-## Parse song accidentals and key signature
-notes = umc.parse_song_notes(song_input, line_sep)
-notes.to_csv('notes.csv', index=False)
+# ## Munge blobs to get ready for note computations
+# song_input = umc.munge_blob_data(closed_img, blobs, line_sep, line_height)
+
+# ## Parse song accidentals and key signature
+# notes, key_type = umc.parse_song_notes(song_input, line_sep)
+# umt.identify_chords(notes.copy(), key_type)
+# notes.to_csv('notes.csv', index=False)
+# uio.write_to_WAV(notes.copy())
 
 
 
