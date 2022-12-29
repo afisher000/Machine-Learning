@@ -15,54 +15,63 @@ for index in notes.index.unique():
         cs.append(pitches)
 
 # %%
+        
+def identify_chord(chord, disp=True):
+    chord_types = {
+        'major':[4,3], 
+        'minor':[3,4],
+        'diminished':[3,3],
+        'augmented':[4,4]
+    }
 
-def check_is_major(chord, print=False):
+    pitch_to_string = { 
+        0:'C',
+        1:'C#/Db',
+        2:'D',
+        3:'D#/Eb',
+        4:'E',
+        5:'F',
+        6:'F#/Gb',
+        7:'G',
+        8:'G#/Ab',
+        9:'A',
+        10:'A#/Bb',
+        11:'B'
+    }
+
+    # Ensure chord is np.array and sorted
+    chord = np.sort(np.array(chord))
+
+    # Mod to octave
     c = np.unique(np.sort(chord%12))
     if len(c)!=3:
+        if disp:
+            print('Not 3 notes in chord')
         return False
 
+    # Check inversions against 4 chord_types
     while c[0]<12:
-        if np.array_equal([4,3], np.diff(c)):
-            if print:
-                print('is major')
-            return True
-        c = np.sort(c + [12, 0, 0])
-    return False
+        for chord_type, pattern in chord_types.items():
+            if np.array_equal(pattern, np.diff(c)):
+                if disp:
+                    chord_key = c[0]
+                    root = chord[0]
+                    chord_string = pitch_to_string[chord_key] + chord_type
+                    if chord_key != root%12:
+                        chord_string += '/'+pitch_to_string[root%12]
+                    print(chord_string)
+                return
+        # Invert
+        c = np.sort(c+[12,0,0])
     
-def check_is_minor(chord, print=False):
-    c = np.unique(np.sort(chord%12))
-    if len(c)!=3:
-        return False
+    # If not identified
+    print(chord)
+    return
 
-    while c[0]<12:
-        if np.array_equal([3,4], np.diff(c)):
-            if print:
-                print('is minor')
-            return True
-        c = np.sort(c + [12, 0, 0])
-    return False
-        
-def check_is_diminished(chord, print=False):
-    c = np.unique(np.sort(chord%12))
-    if len(c)!=3:
-        return False
-
-    while c[0]<12:
-        if np.array_equal([3,3], np.diff(c)):
-            if print:
-                print('is diminished')
-            return True
-        c = np.sort(c + [12, 0, 0])
-    return False
-        
-
-
-for j in range(33):
+for j in range(len(cs)):
     c = cs[j]
-    if not check_is_major(c):
-        if not check_is_minor(c):
-            if not check_is_diminished(c):
-                print(cs[j])
+    identify_chord(c)
+
 
 
 

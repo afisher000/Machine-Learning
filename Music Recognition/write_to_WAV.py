@@ -14,8 +14,11 @@ sec_per_line = 15
 samples_per_line = sec_per_line*sample_rate
 line_length = notes.x.max()+100
 notes['time'] = (notes.line + notes.x/line_length)*sec_per_line
-notes['sample_rate'] = notes.pitch.apply(lambda x: sample_rate*2**((x-10)/12)).astype(int)
+notes['sample_rate'] = notes.pitch.apply(lambda x: sample_rate*2**((x+2)/12)).astype(int)
 
+# Scale amplitude to bring out base notes
+octave_amps = [2, 1.5, 1, 0.5]
+notes['amplitude'] = notes.pitch.apply(lambda x: 1 - 0.7*(x+2)/12)
 
 # Define audio array
 audio_length_sec = sec_per_line * (notes.line.max()+1)
@@ -27,7 +30,7 @@ time = np.linspace(0, audio_length_sec, audio_length_samples)
 for index, row in notes.iterrows():
     f = interp1d(row.time + np.arange(row.sample_rate)/row.sample_rate, guitar_note[:row.sample_rate], 
     'linear', bounds_error = False, fill_value=0)
-    audio += f(time)
+    audio += row.amplitude*f(time)
     
 # Scale audio to 32000 for int16
 audio *= 32000/np.abs(audio).max()
