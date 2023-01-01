@@ -8,9 +8,24 @@ import utils_music_theory as umt
 import utils_model as um
 
 
-staff_margin = 4
+def remove_staff_lines(img):
+    # Find edges of staff lines
+    is_line = (img.sum(axis=1)/img.shape[1]) < 127
+    line_starts = np.where( 
+        np.logical_and(~is_line[:-1], is_line[1:])
+    )[0]
+    line_ends = np.where(
+        np.logical_and(is_line[:-1], ~is_line[1:])
+    )[0]
 
-def clean_music(img, blobs, line_sep):
+    # Turn white if pixel above and below is white
+    for lstart, lend in zip(line_starts, line_ends):
+        line_fill = (img[lstart,:])&(img[lend+1,:])
+        img[lstart:lend+1,:] = line_fill
+    return img
+
+
+def deprecated_clean_music(img, blobs, line_sep):
     clean_img = img.copy()
     line_height = int((4+2*staff_margin)*line_sep)
     n_lines = round(img.shape[0]/line_height)
@@ -41,7 +56,34 @@ def clean_music(img, blobs, line_sep):
         clean_img[top:bottom] = clean_line
     return clean_img
     
-def isolate_music_lines(img):
+
+def strip_words(img, margin=2):
+    is_line = (img.sum(axis=1)/img.shape[1]) < 127
+    line_starts = np.where( 
+        np.logical_and(~is_line[:-1], is_line[1:])
+    )[0]
+    line_ends = np.where( 
+        np.logical_and(is_line[:-1], ~is_line[1:])
+    )[0]
+    line_sep = np.diff(line_starts[:5]).mean()
+    n_lines = len(line_starts)//5
+
+    # Remove long line connecting staff and treble
+    long_vert_lines = uip.morphology_operation(img.copy(), (10*line_sep, 1), cv.MORPH_CLOSE)
+    words_img = ~((~img)&(long_vert_lines))
+
+
+    contours, _ = cv.findContours(~words_img, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+
+    cs = sorted(contours, key=cv.contourArea)[::-1]
+    for c in cs[:n_lines]:
+        x,y,w,h = cv.boundingRect(c)
+        words_img[y:y+h, :] = 0
+        cv.floodFill(words_img, None, (int(x+w/2), int(y+h/2)), 255)
+    cleaned_img = ~((~img)&(words_img))
+    return cleaned_img
+
+def equalize_music_lines(img, margin=4):
     # Remove all-white columns
     non_white_cols = img.sum(axis=0)<255*img.shape[0]
     img = img[:, non_white_cols]
@@ -57,11 +99,17 @@ def isolate_music_lines(img):
     imgs = []
     # Return list of imgs
     for j in range(num_lines):
-        top = int(line_starts[5*j] - staff_margin*line_sep)
-        bottom = int(line_starts[4+5*j] + staff_margin*line_sep)
+        top = int(line_starts[5*j] - margin*line_sep)
+        bottom = int(line_starts[4+5*j] + margin*line_sep)
         left = int(3.5*line_sep)
         right = int(-1.0*line_sep)
-        imgs.append(img[top:bottom,left:right].copy())
+        tempimg = img[top:bottom, left:right].copy()
+        for col in range(tempimg.shape[1]):
+            if tempimg[-1,col]==0:
+                cv.floodFill(tempimg, None, (col,tempimg.shape[0]-1),255)
+            if tempimg[0,col]==0:
+                cv.floodFill(tempimg, None, (col,0),255)
+        imgs.append(tempimg)
     img = np.vstack(imgs)
     return img, line_sep
 

@@ -14,22 +14,26 @@ from sklearn.svm import SVC
 # # To implement 
 # add function that strips black away from staff when notes not present
 
-validate_models = False
+validate_models = True
 
 # Open song file as image
-song_file = 'Songs\\crown_him_with_many_crowns.jpg'
+song_file = 'Songs\\eighth rest.pdf'
 raw_music = uio.import_song(song_file)
 
-# Separate cut out non-staffrecombine
-orig, line_sep = umm.isolate_music_lines(raw_music)
+# Remove words and equalize line spacing
+cleaned_img = umm.strip_words(raw_music.copy(), margin=1.5)
+orig, line_sep =  umm.equalize_music_lines(cleaned_img.copy(), margin=5)
 line_height = 12*line_sep
+
+cv.imwrite('Test\\nostaff.jpg', orig)
+
 
 # Fill notes with model
 if validate_models:
     # Validate note filling
     filled_value = 100
     filled_img = um.fill_contours_using_model(orig.copy(), line_sep, fill_value=100)
-    um.Filling_Model_Validation(filled_img, line_sep, filled_value=filled_value)
+    um.Filling_Model_Validation(orig, filled_img, line_sep, filled_value=filled_value)
     
     # Turn filled to black
     filled_img[filled_img==filled_value]=0
@@ -46,7 +50,7 @@ closed_img = cv.morphologyEx(filled_img.copy(), cv.MORPH_CLOSE, kernel)
 blobs = um.identify_blobs_using_model(orig, closed_img.copy(), line_sep)
 if validate_models:
     um.Identifying_Model_Validation(orig, closed_img, blobs, line_sep)
-
+blobs.to_csv('blobs.csv', index=False)
     
 ## Munge blobs to get ready for note computations
 song_input = umm.munge_blob_data(closed_img, blobs, line_sep, line_height)

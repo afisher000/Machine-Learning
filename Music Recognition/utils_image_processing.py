@@ -7,6 +7,8 @@ Created on Tue Dec 27 15:41:56 2022
 import numpy as np
 import cv2 as cv
 
+# Add 'make_copy' as possible kwarg?
+
 def get_cluster_centers(rect, img, n_clusters):
     # Ensure rect points are integers, get sub image
     x,y,w,h = list(map(int, rect))
@@ -22,5 +24,11 @@ def get_cluster_centers(rect, img, n_clusters):
     
     # Return the centers for img
     return centers + [y,x]
-    
+
+
+
+def morphology_operation(img, element, operation):
+    kernel = np.ones((int(element[0]), int(element[1])), dtype=np.uint8)
+    morphed_img = cv.morphologyEx(img, operation, kernel)
+    return morphed_img
     

@@ -20,33 +20,39 @@ data_columns = [
         'height','aspectratio','extent','solidity', 'angle'
     ]
 
-blob_colors = { 
-        '1':(0,0,255),
-        '2':(0,255,),
-        '3':(255,0,0),
-        's':(255,255,0),
-        'f':(255,0,255),
-        'n':(0,255,255),
-        'm':(0,0,255),
-        'none':(100,100,100)
+nonnote_colors = { 
+        's':(255,0,0), #sharp
+        'f':(255,100,100), #flat
+        'n':(255,200,200), #natural
+        'm':(0,255,255), #measure
+        'd':(100,255,255), #dot
+        '2':(255,0,255),
+        '3':(255,60,255),
+        '4':(255,120,255),
+        '6':(255,180,255),
+        '8':(255,240,255),
+        'q':(200,200,255), #1/16th rest
+        'w':(100,100,255), #1/8th rest
+        'e':(0,0,255), #1/4rest
+        'r':(255,255,0), #half rest
+        't':(255,255,100), #whole rest
+        '\r':(100,100,100)
     }
 
-def identify_blobs_using_model(orig, img, line_sep):
+def identify_nonnotes_using_model(img, line_sep):
     blobs = pd.DataFrame(columns=data_columns)
-    blobs = get_contour_data(img, blobs, line_sep)
+    blobs = get_contour_data(~img, blobs, line_sep)
     
-    if not os.path.exists('model_to_identify_blobs.pkl'):
-        blobs.state = '1'
+    if not os.path.exists('model_to_identify_nonnotes.pkl'):
+        blobs.state = '\r'
         return blobs
     
-    model = pickle.load(open('model_to_identify_blobs.pkl','rb'))
+    model = pickle.load(open('model_to_identify_nonnotes.pkl','rb'))
     X = blobs[training_columns].values
     blobs.state = model.predict(X)
-    
-    blobs = append_measure_lines(orig, blobs, line_sep)
     return blobs
 
-def append_measure_lines(img, blobs, line_sep):
+def deprecated_append_measure_lines(img, blobs, line_sep):
     # Identify measure lines
     kernel = np.ones((int(3.5*line_sep), 1), dtype=np.uint8)
     short_vert_lines = ~cv.morphologyEx(img.copy(), cv.MORPH_CLOSE, kernel)
@@ -73,13 +79,13 @@ def append_measure_lines(img, blobs, line_sep):
             blobs.loc[len(blobs), ['state','cx','cy']] = ['m', cx, cy] 
     return blobs
 
-def label_blobs_on_music(orig, blobs, line_sep):    
+def label_nonnotes(img, blobs, line_sep):    
     # Add colored tags to image
-    color_orig = cv.cvtColor(orig, cv.COLOR_GRAY2BGR)
-    for key, color in blob_colors.items():
-        for index, (cx, cy) in blobs.loc[blobs.state==key, ['cx','cy']].iterrows():
-            cv.circle(color_orig, (int(cx), int(cy)), 15, color, -1)
-    return color_orig
+    color_img = cv.cvtColor(img, cv.COLOR_GRAY2BGR)
+    for char, color in nonnote_colors.items():
+        for _, (cx, cy) in blobs.loc[blobs.state==char, ['cx','cy']].iterrows():
+            cv.circle(color_img, (int(cx), int(cy)), 15, color, -1)
+    return color_img
 
 def fill_contours_using_model(img, line_sep, fill_value=0):
     if not os.path.exists('model_to_fill_contours.pkl'):
@@ -101,32 +107,39 @@ def get_contour_data(mask, contour_df, line_sep, is_selected=True):
     contours, _ = cv.findContours(mask, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
     for c in contours:
         # Faults can arise when m00=0 or len(c)<4 and ellipse cannot be fit.
-        try: 
+        try:
             M = cv.moments(c)
             cx = int(M['m10']/M['m00'])
             cy = int(M['m01']/M['m00']) 
-            
-            area = cv.contourArea(c)
-            x,y,w,h = cv.boundingRect(c)
-            
-            hull = cv.convexHull(c)
-            hull_area = cv.contourArea(hull)
-            _,(MA,ma),angle = cv.fitEllipse(c)
-            
-            # Normalize
-            area = area/line_sep**2
-            hull_area = hull_area/line_sep**2
-            MA = MA/line_sep
-            ma = ma/line_sep
-            w = w/line_sep
-            h = h/line_sep
-            
-            # Ratios
-            aspect_ratio = float(w)/h
-            extent = float(area)/(w*h)
-            solidity = float(area)/hull_area
         except:
             continue
+        
+        area = cv.contourArea(c)
+        x,y,w,h = cv.boundingRect(c)
+        if area<100:
+            continue
+
+        
+        hull = cv.convexHull(c)
+        hull_area = cv.contourArea(hull)
+        try:
+            _,(MA,ma),angle = cv.fitEllipse(c)
+        except:
+            MA, ma, angle = 0, 0, 0
+        
+        # Normalize
+        area = area/line_sep**2
+        hull_area = hull_area/line_sep**2
+        MA = MA/line_sep
+        ma = ma/line_sep
+        w = w/line_sep
+        h = h/line_sep
+        
+        # Ratios
+        aspect_ratio = float(w)/h
+        extent = float(area)/(w*h)
+        solidity = float(area)/hull_area
+
         
         # Append to dataframe
         contour_df.loc[len(contour_df)] = [
@@ -137,8 +150,8 @@ def get_contour_data(mask, contour_df, line_sep, is_selected=True):
     return contour_df
     
 class Filling_Model_Validation():
-    def __init__(self, img, line_sep, filled_value=100):
-        self.orig = img.copy()
+    def __init__(self, orig, img, line_sep, filled_value=100):
+        self.orig = orig
         self.img = img
         self.line_sep = line_sep
         self.filled_value = filled_value
@@ -170,11 +183,12 @@ class Filling_Model_Validation():
         y += self.top
         
         # Fill selected contour
-        if event == cv.EVENT_LBUTTONUP:
+        if event == cv.EVENT_LBUTTONDOWN:
             if self.img[y,x]==255:
                 fill_value = self.filled_value
             elif self.img[y,x]==self.filled_value:
-                fill_value = 255
+                fill_value = int(self.orig[y,x])
+                print(fill_value)
             else:
                 fill_value = 0
             cv.floodFill(self.img, None, (x,y), fill_value)
