@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Created on Fri Dec  8 17:30:33 2023
 
@@ -8,22 +7,33 @@ Created on Fri Dec  8 17:30:33 2023
 import random
 import numpy as np
 import time
+import pickle
 
 class Game2048():
-    def __init__(self, N=4, testing=False, strategy='combine', max_depth=3, parameters=None, max_turns=100):
+    def __init__(self, N=4, testing=False, strategy='combine', max_depth=3, parameters=None, max_turns=1000):
         self.N = N
+        self.nsample = nsample
         self.strategy = strategy
         self.max_depth = max_depth
         self.parameters = parameters
         self.max_turns = max_turns
+        self.move_lookup = pickle.load(open('move_lookup.pkl', 'rb'))
+        
+        
+        
         self.simulate_game()
-
+        
+    def simulate_Ngames(self, N):
+        scores = [g.simulate_game() for _ in range(N)]
+        return np.median(scores)
+        
     def simulate_game(self):
         # Setup board
         self.initialize_board()
 
         # Loop over turns
         self.turns = 1
+
         # print(f'Turn {self.turns}')
         score, direction = self.recursive_search()
 
@@ -31,6 +41,8 @@ class Game2048():
         
         #While at least one valid board, keep playing
         while score>0 and self.turns<self.max_turns: 
+            print(self.board)
+            print()
             self.turns += 1
             # print(f'Turn {self.turns}')
             
@@ -40,8 +52,10 @@ class Game2048():
                 
             # Decide next direction
             score, direction = self.recursive_search()
-                    
+            time.sleep(1)
         # print(f'Max tile was {np.max(self.board)}')
+        
+
         return self.turns
     
                     
@@ -66,8 +80,12 @@ class Game2048():
                     
                 # Else, search branch
                 else:
-                    self.place_random_tile(new_board)
                     
+                    # Find minimum of sampled space
+                    if new_board[0,0]==0:
+                        new_board[0,0] == 1
+                    else:
+                        self.place_random_tile(new_board)
                     score, _ = self.recursive_search(new_board, depth+1)
                 
                 # Score
@@ -98,8 +116,6 @@ class Game2048():
     
     def initialize_board(self):
         self.board = np.zeros( (self.N, self.N), dtype=int)
-        self.place_random_tile()
-        self.place_random_tile()
         self.place_random_tile()
         self.place_random_tile()
         return 
@@ -140,7 +156,7 @@ class Game2048():
             rows, cols = np.where(board==0)
         
         i, j = random.choice( list(zip(rows, cols)) )
-        value = 2 if random.random()<0.9 else 4
+        value = 1 if random.random()<0.9 else 2
         
         if board is None:
             self.board[i,j] = value
@@ -148,6 +164,11 @@ class Game2048():
             board[i,j] = value
         return
 
+
+    def merge_new(self, line):
+        return np.array(self.move_lookup[tuple(line)], dtype=int)
+        
+        
     def merge(self, line):
         result = [0] * len(line)
         index = 0
@@ -155,8 +176,8 @@ class Game2048():
             if value != 0:
                 if result[index] == 0:
                     result[index] = value
-                elif result[index] == value and value!=1:
-                    result[index] *= 2
+                elif result[index] == value:
+                    result[index] += 1 #increment by 1 on logboard
                     index += 1
                 else:
                     index += 1
@@ -168,36 +189,32 @@ class Game2048():
     
     def score_board(self, board):
         # Scale to 1,2,3...
-        logboard = board.copy()
-        logboard[logboard==0] = 1
-        logboard = np.log2(logboard)
-
+        
         # Scores must be greater than 0. 
         if self.strategy == 'simple':
             return 1
         
         elif self.strategy == 'combine':  
-            return np.sum(logboard==0)
+            return np.sum(board==0)
         
         elif self.strategy == 'weighted':
             
             zeros = np.sum(board==0)
-            filled_0 = int(logboard[0,0]>0)
-            filled_1 = int(logboard[0,1]>0)
-            filled_2 = int(logboard[0,2]>0)
-            filled_3 = int(logboard[0,3]>0)
+            filled_0 = int(board[0,0]>2)
+            filled_1 = int(board[0,1]>2)
+            filled_2 = int(board[0,2]>0)
+            # filled_3 = int(board[0,3]>0)
             
-            topdiff = np.diff(logboard[0])
+            topdiff = np.diff(board[0])
             top_order = -1*topdiff[topdiff<0].sum()
-            
-            top_sum = logboard[0].sum()
+            top_sum = board[0].sum()
             
             weights = np.array([
-                [filled_0, 1], 
-                [filled_1, 1],
-                [filled_2, 1],
-                [filled_3, 1],
-                [top_sum, 1],
+                [zeros, 1],
+                [filled_0, 100], 
+                [filled_1, 0],
+                [filled_2, 0],
+                [top_sum, 0],
                 ])
             
             return np.sum( np.prod(weights, axis=1) )
@@ -211,17 +228,10 @@ class Game2048():
     
     
 if __name__=="__main__":
-    g = Game2048(strategy='combine')
+    g = Game2048(strategy='weighted', max_depth=2)
     
-    # Print statistics
-    if False:
-        scores = [g.simulate_game() for _ in range(10)]
-        median = np.median(scores)
-        q1 = np.percentile(scores, 25)
-        q3 = np.percentile(scores, 75)
-        print(f'{g.strategy}: Score = {median} +/- {(q3-q1)/2}')
-        
-        
+    # Train scoring function to match my style of play. Can maybe utilize expectimax brute force searching in that case?
+    
     # # Results
     # Simple:   214 (54)
     # Combine:  262 (64)
