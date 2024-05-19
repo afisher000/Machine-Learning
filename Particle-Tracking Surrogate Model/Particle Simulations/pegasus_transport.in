@@ -1,0 +1,23 @@
+accuracy (5,5);
+
+##### LOAD BEAM #####
+setfile("beam", "beam_after_gun.gdf");
+spacecharge3Dmesh();
+
+##### LINAC #####
+linac_z 	= 1.720;
+
+#linac_gradient = 18;
+#linac_phasedeg = 150;
+linac_L         = 0.580;
+linac_omega 	= 2*pi*2.856e9;
+linac_fieldmap 	= "Fieldmaps/ftlinac.gdf";
+
+linac_powerfac 	= linac_gradient*1e6;
+linac_phaserad 	= (linac_phasedeg)/180*pi;
+
+map1D_TM("wcs", "z", linac_z, linac_fieldmap, "z", "Ez", linac_powerfac, linac_phaserad, linac_omega);
+
+
+##### SPECTROMETER SCREEN #####
+screen("wcs","I",3.191);

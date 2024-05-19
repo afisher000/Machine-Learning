@@ -1,6 +1,7 @@
 accuracy (5,5);
 
 ########## NOTES ###########
+# Run gun separately as "Cathode" space charge is extremely slow and only needed at non-relativistic energy.
 # Parameters included in surrogate model are commented out in this input file.
 
 
@@ -23,7 +24,7 @@ setGBzdist("beam","g",0,GB,0,3);
 setGBxdist("beam","g",0,GB,3,3);
 setGBydist("beam","g",0,GB,3,3);
 
-if (Qtot!=0) spacecharge3Dmesh("Cathode");
+spacecharge3Dmesh("Cathode");
 
 ##### ELECTRON GUN #####
 gun_z 		= 0;
@@ -43,7 +44,7 @@ map1D_TM("wcs", "z", gun_z, gun_fieldmap, "Z", "EZ", gun_powerfac, gun_phaserad,
 ##### SOLENOID 1 #####
 sol1_z 		= 0.040 + 0.250;
 
-#sol1_current 	= 1.1;
+sol1_current 	= 1.1;
 sol1_mcoeff 	= 0.14585;
 sol1_bcoeff 	= 0.00945;
 sol1_R 		= 0.0253043;
@@ -54,21 +55,6 @@ sol1_nI 	= sqrt( sol1_L*sol1_L + 4*sol1_R*sol1_R )/sol1_L/mu0*sol1_fac;
 
 bzsolenoid("wcs", "z", sol1_z, sol1_R, sol1_L, sol1_nI);
 
-
-##### LINAC #####
-linac_z 	= 1.720;
-
-#linac_gradient = 18;
-#linac_phasedeg = 150;
-linac_L         = 0.580;
-linac_omega 	= 2*pi*2.856e9;
-linac_fieldmap 	= "Fieldmaps/ftlinac.gdf";
-
-linac_powerfac 	= linac_gradient*1e6;
-linac_phaserad 	= (linac_phasedeg)/180*pi;
-
-map1D_TM("wcs", "z", linac_z, linac_fieldmap, "z", "Ez", linac_powerfac, linac_phaserad, linac_omega);
-
-
 ##### SPECTROMETER SCREEN #####
-screen("wcs","I",3.191);
+screen("wcs", "I", 0.5);
+
