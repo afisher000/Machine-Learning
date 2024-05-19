@@ -11,7 +11,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.signal import find_peaks
 
-from Utils import utils_opencv as ucv
+import Utils.opencv as ucv
 
 plt.close('all')
 

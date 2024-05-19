@@ -11,9 +11,8 @@ import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 
-from Utils import utils_opencv as ucv
-
-df = pd.read_csv('Data/digits.csv')
+import Utils.opencv as ucv
+df = pd.read_csv('Datasets/digits.csv')
 
 
 y = df['label'].values
@@ -47,4 +46,4 @@ for j in range(len(X)):
 # %%
 data = pd.DataFrame(index=y_new, data=X_new)
 data = data.reset_index().rename(columns={'index':'label'})
-data.to_csv('Data/expanded_digits.csv', index=False)
+data.to_csv('Datasets/expanded_digits.csv', index=False)
