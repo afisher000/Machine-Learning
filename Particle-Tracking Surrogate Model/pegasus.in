@@ -1,0 +1,74 @@
+accuracy (5,5);
+
+########## NOTES ###########
+# Parameters included in surrogate model are commented out in this input file.
+
+
+########## DEFINE BEAM ################
+#nps 		= 5000;
+#Qtot 		= -10e-12;
+laser_rms 	= 0.5e-3;
+laser_fwhm 	= 100e-15;
+MTE 		= 0.5;
+E0		= MTE/2;
+G  		= 1-q*E0/(m*c*c);
+GB 		= sqrt(G^2-1);
+
+setparticles("beam",nps,me,qe,Qtot) ;
+setxdist("beam","g",0, laser_rms,3,3) ;
+setydist("beam","g",0, laser_rms,3,3) ;
+settdist("beam","g",0, laser_fwhm,3,3);
+
+setGBzdist("beam","g",0,GB,0,3);
+setGBxdist("beam","g",0,GB,3,3);
+setGBydist("beam","g",0,GB,3,3);
+
+if (Qtot!=0) spacecharge3Dmesh("Cathode");
+
+##### ELECTRON GUN #####
+gun_z 		= 0;
+
+#gun_loopmv 	= 39;
+#gun_phasedeg 	= 6*2.856;
+gun_omega 	= 2*pi*2.856e9; 
+gun_mcoeff 	= -1e6*(11.4286);
+gun_bcoeff 	= -1e6*(-1.89184);
+gun_fieldmap 	= "Fieldmaps/Italian_recession_0.00mm_rescaled.gdf";
+
+gun_powerfac 	= gun_mcoeff * sqrt(gun_loopmv) + gun_bcoeff;
+gun_phaserad 	= (90 + gun_phasedeg)/180*pi;
+ 
+map1D_TM("wcs", "z", gun_z, gun_fieldmap, "Z", "EZ", gun_powerfac, gun_phaserad, gun_omega);
+
+##### SOLENOID 1 #####
+sol1_z 		= 0.040 + 0.250;
+
+#sol1_current 	= 1.1;
+sol1_mcoeff 	= 0.14585;
+sol1_bcoeff 	= 0.00945;
+sol1_R 		= 0.0253043;
+sol1_L 		= 0.0953763;
+
+sol1_fac    	= sol1_current*sol1_mcoeff + sol1_bcoeff;
+sol1_nI 	= sqrt( sol1_L*sol1_L + 4*sol1_R*sol1_R )/sol1_L/mu0*sol1_fac;
+
+bzsolenoid("wcs", "z", sol1_z, sol1_R, sol1_L, sol1_nI);
+
+
+##### LINAC #####
+linac_z 	= 1.720;
+
+#linac_gradient = 18;
+#linac_phasedeg = 150;
+linac_L         = 0.580;
+linac_omega 	= 2*pi*2.856e9;
+linac_fieldmap 	= "Fieldmaps/ftlinac.gdf";
+
+linac_powerfac 	= linac_gradient*1e6;
+linac_phaserad 	= (linac_phasedeg)/180*pi;
+
+map1D_TM("wcs", "z", linac_z, linac_fieldmap, "z", "Ez", linac_powerfac, linac_phaserad, linac_omega);
+
+
+##### SPECTROMETER SCREEN #####
+screen("wcs","I",3.191);

@@ -1,0 +1,50 @@
+close all;
+clearvars; 
+clc;
+
+p   = load_pegasus();
+
+%% Create mr
+mr.nps              = 100;
+mr.Qtot             = -10e-12;
+
+mr.gun_loopmv       = 39;
+mr.gun_phasedeg     = 6*2.856;
+
+mr.sol1_current     = 1.1;
+
+mr.linac_gradient   = 1
+
+
+write_mr(mr);
+
+%%
+% Run gun
+run_GPT('gun.in');
+movefile('results.gdf', 'beam_after_gun.gdf');
+
+% Run to undulator
+run_GPT('transport.in');
+movefile('results.gdf', 'beam_at_undulator.gdf');
+mr.load_flag = 1;
+
+% Run rest
+taper2s = (0:10:60)/100;
+Qtots   = 50:25:200;
+
+for j=1:length(Qtots)
+    for jj=1:length(taper2s)
+        % Scale charge to Qtots(j) at undulator
+        mr.Qscale   = Qtots(j)/abs(mr.Qtot*1e12);
+        mr.taper2   = taper2s(jj);
+
+        % Check if simulation already exists
+        dest_path   = sprintf('Charge sims/Charge=%dpC,taper2=%.2f.gdf', Qtots(j),taper2s(jj));
+        if ~exist(dest_path, 'file')
+            write_mr(mr);
+            run_GPT('tessatron.in');
+            movefile('results.gdf', dest_path);
+        end
+    end
+end
+
