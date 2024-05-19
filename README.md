@@ -2,7 +2,7 @@
 I created this repository to start cleaning/organizing my old machine learning projects so useful code scripts are easy to find. 
 
 ## Project Overviews
-###Digit Classification
+### Digit Classification
 
 The MNIST dataset is a classical starting project for those learning about machine learning. I added my own twist by manually creating a dataset using the OpenCV library to parse images of handwritten digits. Digits are centered/scaled to a 16x16 pixel square. To increase the amount of data, I included rotations and transformations of the digits.
 
