@@ -1,5 +1,5 @@
 # Machine Learning Repository
-I created this repository to clean/organized my old machine learning projects so the useful code scripts and easy to find. 
+I created this repository to start cleaning/organizing my old machine learning projects so useful code scripts are easy to find. 
 
 ## Project Overviews
 *Digit Classification*:
