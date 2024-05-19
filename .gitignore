@@ -9,6 +9,7 @@ venv
 *.txt
 *.pdf
 *.pyc
+*.csv
 
 # Ignore files related to API keys
 .env
