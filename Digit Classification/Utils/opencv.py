@@ -31,8 +31,11 @@ def xshift_image(image, xshift):
     
     
     
-def show_image(image):
-    cv.imshow('Label', image)
+def show_image(image, scale=1):
+    h, w = image.shape[:2]
+    scaled_image = cv.resize(image, (round(w*scale), round(h*scale)), interpolation=cv.INTER_AREA)
+    
+    cv.imshow('Label', scaled_image)
     cv.waitKey(0)
     cv.destroyAllWindows()
     return

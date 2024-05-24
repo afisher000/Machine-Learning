@@ -1,6 +1,6 @@
 nps 500
-Qtot -7.403655e-12
-gun_loopmv 3.891633e+01
-gun_phasedeg 2.273648e+01
-linac_gradient 1.533256e+01
-linac_phasedeg 2.350906e+02
+Qtot -9.046665e-12
+gun_loopmv 3.849127e+01
+gun_phasedeg 1.799751e+01
+linac_gradient 1.406635e+01
+linac_phasedeg 2.539637e+02
