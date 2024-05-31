@@ -22,7 +22,7 @@ y = df['label'].values
 X = df.drop(columns=['label']).values
 
 # %% Expand dataset by applying shifts and angles
-angles = np.linspace(-10, 10, 5)
+angles = np.linspace(-15, 15, 5)
 xshifts = np.linspace(-1, 1, 3)
 
 # New labels

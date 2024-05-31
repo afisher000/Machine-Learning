@@ -17,7 +17,10 @@ class DigitsDataset(Dataset):
 
     def __init__(self, csv_file, transform=None):
 
-        self.digit_pixels = pd.read_csv(csv_file)
+        df = pd.read_csv(csv_file)
+        self.digit_pixels = df
+        self.data = df.drop(columns=['label'])
+        self.labels = df[['label']]
         self.transform = transform
 
     def __len__(self):
@@ -45,11 +48,11 @@ class CNN(nn.Module):
     '''Create convolutional neural-network'''
     def __init__(self):
         super().__init__()
-        self.conv1 = nn.Conv2d(1, 4, 3, padding=1)
-        self.conv2 = nn.Conv2d(4, 16, 3,  padding=1)
+        self.conv1 = nn.Conv2d(1, 2, 3, padding=1)
+        self.conv2 = nn.Conv2d(2, 4, 3, padding=1)
         self.pool = nn.MaxPool2d(2,2) #Reduces H,W by factor of 2
         
-        self.fc1 = nn.Linear(16*4*4, 40)
+        self.fc1 = nn.Linear(4*4*4, 40)
         self.fc2 = nn.Linear(40, 10)
         
     
@@ -60,15 +63,18 @@ class CNN(nn.Module):
         '''
         
         # 1, 16, 16
-        x = self.pool(F.relu(self.conv1(x)))
+        # x = self.pool(F.relu(self.conv1(x)))
+        x = self.pool(torch.sigmoid(self.conv1(x)))
         
         # 4, 8, 8
-        x = self.pool(F.relu(self.conv2(x)))
+        # x = self.pool(F.relu(self.conv2(x)))
+        x = self.pool(torch.sigmoid(self.conv2(x)))
         
         # 16, 4, 4
-        x = x.view(-1, 16*4*4) # collapse into vector
+        x = x.view(-1, 4*4*4) # collapse into vector
         
         # Fully connected layers down to final 10 outputs
-        x = F.relu(self.fc1(x))
+        # x = F.relu(self.fc1(x))
+        x = torch.sigmoid(self.fc1(x))
         x = self.fc2(x)
         return x

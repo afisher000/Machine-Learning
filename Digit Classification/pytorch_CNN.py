@@ -7,71 +7,16 @@ Created on Sat Dec 23 14:00:10 2023
 
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader, random_split, Subset
 from Utils.pytorch import DigitsDataset, CNN
+from sklearn.model_selection import StratifiedKFold
+import numpy as np
 
-
-    
-    
-
-# Use GPU if available
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-
-# Hyper parameters
-num_epochs = 40
-batch_size = 5
-learning_rate = 0.002
-
-
-# Read dataset into train and test sets
-dataset = DigitsDataset('Datasets/expanded_digits.csv')
-
-train_size = int(0.8 * len(dataset))
-test_size = len(dataset) - train_size
-train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
-
-
-# Create loaders
-train_loader = DataLoader(train_dataset, batch_size = batch_size, shuffle=True)
-test_loader = DataLoader(test_dataset, batch_size = batch_size, shuffle=True)
-
-
-# Train model
-model = CNN().to(device)
-criterion = nn.CrossEntropyLoss()
-optimizer = torch.optim.SGD(model.parameters(), lr = learning_rate)
-
-n_total_steps = len(train_loader)
-for epoch in range(num_epochs):
-    for i, sample in enumerate(train_loader):
-        pixels = sample['pixels'].to(device)
-        labels = sample['labels'].to(device)
-        
-        # Forward pass
-        outputs = model(pixels)
-        loss = criterion(outputs, labels)
-        
-        # Backward and optimize
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-        
-        # Printout
-        if (i+1) % 100 == 0:
-            print( f'Epoch {epoch+1}/{num_epochs}, Step {i+1}/{n_total_steps}, Loss: {loss.item():.4f}')
-            
-print('Finished training')
-
-# %% Validate
-classes = list(range(10))
-with torch.no_grad():
+def compute_accuracy(device, model, train_loader):
     n_correct = 0
     n_samples = 0
-    n_class_correct = [0 for _ in range(10)]
-    n_class_samples = [0 for _ in range(10)]
     
-    for sample in test_loader:
+    for sample in train_loader:
         pixels = sample['pixels'].to(device)
         labels = sample['labels'].to(device)
         outputs = model(pixels)
@@ -80,20 +25,95 @@ with torch.no_grad():
         n_samples += len(labels)
         n_correct += (predicted==labels).sum().item()
         
-        for i in range(len(labels)):
-            label = labels[i]
-            pred = predicted[i]
-            if (label==pred):
-                n_class_correct[label] += 1
-            n_class_samples[label] += 1
+    return 100.0 * n_correct / n_samples
+    
+def train_model(device, data_loader):
+    # Train model
+    model = CNN().to(device)
+    criterion = nn.CrossEntropyLoss()
+    # optimizer = torch.optim.SGD(model.parameters(), lr = learning_rate)
+    optimizer = torch.optim.Adam(model.parameters(), lr = learning_rate, weight_decay=10e-5)
+    
+    n_total_steps = len(data_loader)
+    for epoch in range(num_epochs):
+        for i, sample in enumerate(data_loader):
+            pixels = sample['pixels'].to(device)
+            labels = sample['labels'].to(device)
             
+            # Forward pass
+            outputs = model(pixels)
+            loss = criterion(outputs, labels)
+            
+            # Backward and optimize
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            
+            # Printout
+            # if (i+1) % 10 == 0:
+                # print( f'Epoch {epoch+1}/{num_epochs}, Step {i+1}/{n_total_steps}, Loss: {loss.item():.4f}')
+    return model
     
-    acc = 100.0 * n_correct / n_samples
-    print(f'Accuracy of network: {acc:.2f} %')
+
+# Use GPU if available
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+
+# Hyper parameters
+num_epochs = 10
+batch_size = 15
+learning_rate = 0.005
+
+
+# Read dataset into train and test sets
+dataset = DigitsDataset('Datasets/expanded_digits.csv')
+# %%
+fold_train_scores = []
+fold_test_scores = []
+skf = StratifiedKFold(n_splits = 5)
+for fold, (train_mask, test_mask) in enumerate(skf.split(dataset.data, dataset.labels)):
+    print(f"Fold {fold + 1}")
     
-    for i, class_ in enumerate(classes):
-        acc = 100 * n_class_correct[i]/n_class_samples[i]
-        print(f'Accuracy of {class_}: {acc:.2f}%')
+    
+    train_dataset = Subset(dataset, train_mask)
+    test_dataset  = Subset(dataset, test_mask)
+    
+    # train_size = int(0.8 * len(dataset))
+    # test_size = len(dataset) - train_size
+    # train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
+    
+    
+    # Create loaders
+    train_loader = DataLoader(train_dataset, batch_size = batch_size, shuffle=True)
+    test_loader = DataLoader(test_dataset, batch_size = batch_size, shuffle=True)
+    
+    model = train_model(device, train_loader)
+
+                
+    
+    # %% Validate
+    classes = list(range(10))
+    with torch.no_grad():
         
-# %% Save model
+        train_accuracy = compute_accuracy(device, model, train_loader)
+        fold_train_scores.append(train_accuracy)
+        print(f'Train: {train_accuracy:.2f} %')
+        
+        
+        test_accuracy = compute_accuracy(device,model,  test_loader)
+        fold_test_scores.append(test_accuracy)
+        print(f'Test: {test_accuracy:.2f} %')
+        
+
+# %%
+training_scores = np.array(fold_train_scores)
+test_scores = np.array(fold_test_scores)
+
+print(f'Training: {training_scores.mean():.2f} +/- ({training_scores.std():.2f}) %')
+print(f'Testing: {test_scores.mean():.2f} +/- ({test_scores.std():.2f}) %')
+
+# %% Final training and save
+data_loader = DataLoader(dataset, batch_size = batch_size, shuffle=True)
+model = train_model(device, data_loader)
+
 torch.save(model, 'Models/cnn.pkl')
