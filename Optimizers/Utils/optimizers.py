@@ -13,14 +13,14 @@ class Adam():
         self.beta1 = beta1
         self.beta2 = beta2
         self.epsilon = epsilon
+    
+    def simulate(self, func, iterations=10):
+        x, y = func.initial_value
         self.m_x = 0
         self.v_x = 0
         self.m_y = 0
         self.v_y = 0
         self.t = 0
-    
-    def simulate(self, func, iterations=10):
-        x, y = func.initial_value
         history = [(x, y)]
         
         for _ in range(iterations):
@@ -58,11 +58,11 @@ class Adagrad():
         self.label = label
         self.learning_rate = learning_rate
         self.epsilon = 1e-8
-        self.cumulative_gradients_x = 0
-        self.cumulative_gradients_y = 0
     
     def simulate(self, func, iterations=10):
         x, y = func.initial_value
+        self.cumulative_gradients_x = 0
+        self.cumulative_gradients_y = 0
         history = [(x, y)]
         
         for _ in range(iterations):
@@ -145,8 +145,8 @@ class NAG():
         
         for _ in range(iterations):
             # Compute gradient at future position
-            grad_x_future = (func.evaluate(x - self.momentum * v_x + eps, y - self.momentum * v_y) - func.evaluate(x - self.momentum * v_x, y - self.momentum * v_y)) / eps
-            grad_y_future = (func.evaluate(x - self.momentum * v_x, y - self.momentum * v_y + eps) - func.evaluate(x - self.momentum * v_x, y - self.momentum * v_y)) / eps
+            grad_x_future = (func.evaluate(x + self.momentum * v_x + eps, y + self.momentum * v_y) - func.evaluate(x + self.momentum * v_x, y + self.momentum * v_y)) / eps
+            grad_y_future = (func.evaluate(x + self.momentum * v_x, y + self.momentum * v_y + eps) - func.evaluate(x + self.momentum * v_x, y + self.momentum * v_y)) / eps
             
             # Update velocity
             v_x = self.momentum * v_x - self.learning_rate * grad_x_future

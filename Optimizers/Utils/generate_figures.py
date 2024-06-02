@@ -13,7 +13,7 @@ import Utils.cost_functions as cf
 import Utils.optimizers as opt
 plt.close('all')
 
-def create_pic(func, optimizers, x_range=(-5, 5), y_range=(-5, 5), frames=100, filename=None):
+def create_pic(func, optimizers, x_range=(-5, 5), y_range=(-5, 5), frames=50, filename=None):
     
     # Create figure
     plt.figure(figsize=(6, 4))
