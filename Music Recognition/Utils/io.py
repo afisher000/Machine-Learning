@@ -30,7 +30,7 @@ def pdf2jpg(file, dest=None):
         pix.save(dest)
     return
 
-def import_song(song_file, threshold=200):
+def import_song(song_file, threshold=200, save_params=True):
     if not os.path.exists(song_file):
         raise ValueError('Song file not found.')
         
@@ -46,7 +46,8 @@ def import_song(song_file, threshold=200):
     _, binary_img = cv.threshold(grayscale_img, threshold, max_val, min_val)
     
     # Save song parameters
-    save_song_params(binary_img)
+    if save_params:
+        save_song_params(binary_img)
     return binary_img
 
 def save_song_params(img):

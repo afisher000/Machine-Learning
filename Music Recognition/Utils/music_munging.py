@@ -15,7 +15,7 @@ def remove_staff_lines(img):
     line_starts = np.logical_and(~is_line[:-1], is_line[1:]).nonzero()[0]+1
     line_ends = np.logical_and(is_line[:-1], ~is_line[1:]).nonzero()[0]+1
     
-    # Turn line column white if pixel above and below line is white
+    # Turn line white where pixel above and below line is white
     for start, end in zip(line_starts, line_ends):
         line_fill = (img[start-1,:])&(img[end,:])
         img[start:end+1,:] = line_fill

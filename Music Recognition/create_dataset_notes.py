@@ -1,5 +1,19 @@
 # -*- coding: utf-8 -*-
 """
+Created on Sun Jun  9 13:05:57 2024
+
+@author: afisher
+"""
+
+# -*- coding: utf-8 -*-
+"""
+Created on Sun Jun  9 12:13:55 2024
+
+@author: afisher
+"""
+
+# -*- coding: utf-8 -*-
+"""
 Created on Tue May 21 15:42:30 2024
 
 @author: afisher
@@ -17,30 +31,23 @@ import numpy as np
 import os
 from datetime import datetime
 
-# %% Read and clean music
+# %% Import and clean music
 song_name = 'single_line'
-song_file = os.path.join('Sheet Music/Original', song_name + '.jpg')
+extension = 'jpg'
+song_file = f'Sheet Music\\Original\\{song_name}.{extension}'
 
-raw_music = uio.import_song(song_file)
-
-params = uio.save_song_params(raw_music)
-orig = umm.clean_music(raw_music.copy())
+raw_music = uio.import_song(song_file) #Create song params
+orig = uio.import_song(f'Sheet Music\\Notes\\{song_name}.jpg', save_params=False)
 
 
 # %% Filter and sort contours by area
-contours, _ = cv.findContours(orig, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
-
-max_contour_area = .8 * params['line_sep']**2
-min_contour_area = 0.05 * params['line_sep']**2
-
-fillable_contours = [c for c in contours if cv.contourArea(c)<max_contour_area 
-                     and cv.contourArea(c)>min_contour_area] 
-sorted_contours = sorted(fillable_contours, key = lambda x: cv.contourArea(x))
+contours, _ = cv.findContours(~orig, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+sorted_contours = sorted(contours, key = lambda x: cv.boundingRect(x)[3])
 
 
 # %% Manually identify contours to fill
 color_image = cv.cvtColor(orig, cv.COLOR_GRAY2BGR)
-labels = ['n']*len(sorted_contours)
+labels = ['0']*len(sorted_contours)
 j = 0
 keep_looping = True
 while keep_looping:
@@ -54,8 +61,10 @@ while keep_looping:
     # Fill with green and show
     cv.drawContours(color_image, [c], -1, (0, 255, 0), -1)
     
-    cv.imshow('image', color_image[max(0,y-2*h):min(y+3*h, color_image.shape[0]),
-                                   max(0,x-2*w):min(x+3*w, color_image.shape[1])])
+    H = min(h, 20)
+    W = min(w, 20)
+    cv.imshow('image', color_image[max(0,y-2*H):min(y+h+2*H, color_image.shape[0]),
+                                   max(0,x-2*W):min(x+w+2*W, color_image.shape[1])])
     
     # Parse key input
     key = cv.waitKeyEx(0)
@@ -63,14 +72,10 @@ while keep_looping:
         j += 1
     elif key==2424832:
         j -= 1
-    elif key==ord('y'):
-        labels[j] = 'y'
+    elif key in map(ord, list('01234')):
+        labels[j] = chr(key)
         print('Fill')
         j += 1        
-    elif key == ord('n'):
-        labels[j] = 'n'
-        print('No fill')
-        j += 1
     elif key == ord('q'):
         keep_looping = False
     
@@ -86,5 +91,5 @@ df = df.reset_index().rename(columns={'index':'labels'})
 
 # Save for given minute
 datestr = datetime.now().strftime('%Y-%m-%d_%H-%M-%S') + f' {song_name}.csv'
-file_path = os.path.join('Datasets/Note Filling', datestr)
+file_path = os.path.join('Datasets/Notes', datestr)
 df.to_csv(file_path, index=False)
